@@ -2,7 +2,7 @@ Aký problém riešim
 - Trénerom karate chýba digitálny nástroj na zapisovanie karate cvikov s vizuálnymi referenciami (obrázkami alebo GIFmi) a na ich jednoduché zostavenie do štruktúrovaných tréningových plánov.
 
 Kto sú moji používatelia
-- Tréneri karate, ktorí plánujú vlastné tréningy.
+- Tréneri karate v našom klube.
 
 Ako chcem problém vyriešiť (MVP)
 - Databáza cvikov
@@ -24,7 +24,7 @@ Aplikácia ukáže čas každého cviku aj celkovú dĺžku tréningu: čas cvik
 - Zverejnenie v App Store. Dôvod:	Aplikácia je zatiaľ len pre mňa.
 - Zmena poradia cvikov ťahaním. Dôvod: Cviky ostanú v poradí, v akom ich zaškrtnem. Na prvú verziu to stačí.
 - História tréningov, štatistiky, dochádzka. Dovod:	Nepomáhajú s hlavným problémom.
-- Záloha a prenos dát do iného telefónu. Dôvod:	Dáta sú zatiaľ len v jednom telefóne. Export príde, keď bude appku používať viac ľudí.
+- Záloha a prenos dát do iného telefónu. Dôvod:	Dáta sú zatiaľ len v jednom telefóne. Export dát a zdieľanie tréningov s ostatnými trénermi príde v ďalšej verzii.
 
 Aké technológie potrebujem
 - Rozhranie: React + TypeScript (obrazovky aplikácie)
