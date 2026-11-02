@@ -1,9 +1,5 @@
 # SPEC – Karate Training Planner
 
-Špecifikácia požiadaviek. Popisuje, **čo** má aplikácia robiť a podľa čoho overím, že to robí. Ako je to postavené, je v [DESIGN.md](DESIGN.md).
-
-Stav: verzia 1 (MVP) · Autor: Kristína Simčíková · Karate klub Katsudo Sabinov
-
 ## 1. Problém
 
 Trénerom karate v našom klube chýba nástroj, v ktorom by mali cviky aj s obrázkami alebo videami a z ktorého by rýchlo poskladali tréning. Tréningy sa plánujú od oka, takže sa často nestihnú: pauzy sú dlhé alebo deti robia cvik príliš dlho a na koniec tréningu nezostane čas.
@@ -12,14 +8,12 @@ Trénerom karate v našom klube chýba nástroj, v ktorom by mali cviky aj s obr
 
 | Rola | Kto | Čo robí v aplikácii |
 | --- | --- | --- |
-| **Tréner** | tréneri klubu, každý vo svojom telefóne (iPhone) | spravuje cviky a kategórie, zostavuje a upravuje tréningy, vidí ich časový rozvrh, označuje odtrénované tréningy |
+| **Tréner** | tréneri klubu, každý vo svojom telefóne | spravuje cviky a kategórie, zostavuje a upravuje tréningy, vidí ich časový rozvrh, označuje odtrénované tréningy |
 | **Správca obsahu** | ja ako autorka aplikácie | v repozitári upravuje predvolené cviky, kategórie a ich obrázky/videá; zmeny sa dostanú ku všetkým trénerom s ďalšou verziou aplikácie |
 
 Aplikácia nemá prihlasovanie. Všetci tréneri majú v aplikácii rovnaké práva, rozlišuje ich iba meno trénera pri tréningu.
 
 ## 3. Funkcie
-
-Každá funkcia je jedna veta z pohľadu trénera.
 
 ### 1. Cviky
 
@@ -86,7 +80,7 @@ Testovací plán pre krok „overenie“. Každé kritérium sa dá vyskúšať 
 - **Platforma:** iPhone (Safari, inštalácia na plochu). Funguje aj v prehliadači na počítači a na Androide, tam ju ale netestujem.
 - **Bez Macu a bez poplatkov:** vývoj na Windows, žiadny platený Apple Developer účet, žiadny platený server ani služba.
 - **Technológie:** React + TypeScript, Vite, IndexedDB cez Dexie.js, hosting na GitHub Pages.
-- **Jazyk rozhrania:** slovenčina, dátumy v slovenskom formáte (po 19. 10. 2026), časy v 24-hodinovom formáte.
+- **Jazyk rozhrania:** slovenčina, dátumy v slovenskom formáte, časy v 24-hodinovom formáte.
 - **Dáta:** iba v telefóne konkrétneho trénera. Žiadny server, žiadne účty.
 - **Médiá:** fotka, GIF alebo video nahrané v aplikácii najviac 40 MB. Predvolené obrázky a videá patria do repozitára.
 - **Offline:** po prvom otvorení musí aplikácia fungovať bez internetu.
@@ -99,13 +93,13 @@ Testovací plán pre krok „overenie“. Každé kritérium sa dá vyskúšať 
 | Účty, prihlasovanie, synchronizácia medzi telefónmi | Potrebovali by server a prihlasovanie. Každý tréner zatiaľ pracuje vo svojom telefóne. |
 | Zdieľanie tréningov medzi trénermi | Závisí od synchronizácie. Meno trénera pri tréningu je príprava na túto funkciu. |
 | Záloha a export dát | Prídu spolu so zdieľaním. |
-| Štatistiky a dochádzka detí | Nepomáhajú s hlavným problémom – stihnúť tréning načas. |
+| Štatistiky a dochádzka detí | Nepomáhajú s hlavným problémom. |
 | Zverejnenie v App Store | Vyžaduje platený účet a kontrolu od Apple. Inštalácia cez Safari stačí. |
 | Premenovanie a mazanie kategórií | Kategórie sa dajú pridať a usporiadať. Úpravy budú v ďalšej verzii. |
 
 ## 7. Rozhodnuté otázky
 
-- **Natívna appka alebo webová?** Webová aplikácia nainštalovaná na plochu (PWA). Natívna iOS appka bez Macu a bez plateného účtu sa do iPhonu trvalo nainštalovať nedá.
+- **Natívna appka alebo webová?** Webová aplikácia nainštalovaná na plochu. Natívna iOS appka bez Macu a bez plateného účtu sa do iPhonu trvalo nainštalovať nedá.
 - **Jazyk rozhrania?** Slovenčina, lebo tréneri používajú zaužívané slovenské pojmy.
 - **Vymazať alebo skryť?** Cvik sa skrýva, aby sa omylom nestratil. Natrvalo sa dá vymazať iba vlastný cvik, ktorý je už skrytý. Tréning sa dá skryť aj natrvalo vymazať.
 - **Počíta sa prestávka po poslednom cviku?** Nie.
