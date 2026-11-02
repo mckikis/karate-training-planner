@@ -1,10 +1,8 @@
 # DESIGN – Karate Training Planner
 
-Návrh riešenia pre [SPEC.md](SPEC.md): architektúra, dátový model, rozhranie medzi časťami aplikácie a štruktúra projektu. Čísla funkcií (1.1, 2.5…) a kritérií (K1…) odkazujú na SPEC.md.
-
 ## 1. Architektúra
 
-Aplikácia je **webová aplikácia nainštalovateľná na plochu (PWA)**, ktorá beží celá v telefóne. Nemá server ani serverové API. GitHub slúži len na uloženie kódu a zverejnenie statických súborov.
+Aplikácia je **webová aplikácia nainštalovateľná na plochu**, ktorá beží celá v telefóne. Nemá server ani serverové API. GitHub slúži len na uloženie kódu a zverejnenie statických súborov.
 
 ```mermaid
 flowchart LR
@@ -183,38 +181,8 @@ Aplikácia nemá serverové API. Obrazovky volajú tieto funkcie a s tabuľkami 
 
 Spodná lišta Cviky / Tréningy je na zoznamoch a detailoch. Formuláre majú hornú lištu so Späť a dolnú lištu s celkovým časom a tlačidlom Uložiť. Hlavné obrazovky majú logo klubu pri nadpise a podpis dole (3.5).
 
-## 8. Štruktúra projektu
 
-```text
-karate-training-planner-app/
-├── .github/workflows/deploy.yml   zostavenie a zverejnenie na GitHub Pages po push
-├── public/
-│   ├── exercises/                 obrázky a videá k predvoleným cvikom
-│   ├── katsudo-logo.png           logo klubu
-│   └── iconLogo.png, icon-*.png   ikona aplikácie
-├── src/
-│   ├── main.tsx                   štart: trvalé úložisko, syncStarterData, vykreslenie
-│   ├── App.tsx                    navigácia (adresy) a spodná lišta
-│   ├── db.ts                      dátový model, verzie a migrácia, predvolené dáta, pomocné funkcie
-│   ├── starterData.ts             predvolené kategórie a cviky (upravuje správca obsahu)
-│   ├── time.ts                    výpočty a formátovanie času
-│   ├── components.tsx             spoločné prvky: médium, náhľad, hviezdička, časové polia, hlavička
-│   ├── sortable.tsx               zoznam s posúvaním potiahnutím
-│   ├── index.css                  vzhľad – farby v :root, veľkosti prvkov
-│   └── pages/                     obrazovky z kapitoly 7
-├── index.html, vite.config.ts     vstupná stránka, nastavenie buildu a PWA
-├── project.md, SPEC.md, DESIGN.md dokumentácia
-└── package.json                   knižnice a skripty (dev, build, lint)
-```
-
-## 9. Offline, nasadenie a aktualizácie
-
-- **Nasadenie:** `git push` do `main` spustí GitHub Actions: `npm ci` → `npm run build` → zverejnenie priečinka `dist` na `https://mckikis.github.io/karate-training-planner-app/`. Vite má nastavenú cestu `base` na názov repozitára.
-- **Offline:** service worker uloží pri prvom otvorení všetky súbory aplikácie vrátane obrázkov a videí z `public/exercises/` (najviac 30 MB na súbor).
-- **Aktualizácie:** nová verzia sa stiahne na pozadí a použije sa pri ďalšom otvorení. Dáta v IndexedDB ostanú, prípadnú zmenu schémy urobí upgrade (3.4).
-- **Trvalé úložisko:** pri štarte aplikácia požiada prehliadač (`navigator.storage.persist()`), aby dáta nemazal pri nedostatku miesta.
-
-## 10. Rozhodnutia a alternatívy
+## 8. Rozhodnutia a alternatívy
 
 | Rozhodnutie | Zvažované alternatívy | Prečo takto |
 | --- | --- | --- |
@@ -226,7 +194,7 @@ karate-training-planner-app/
 | Skrývanie namiesto mazania | iba mazanie | omylom skrytý cvik sa dá vrátiť a staré tréningy ostanú úplné |
 | `HashRouter` | `BrowserRouter` | GitHub Pages nevie presmerovať ostatné adresy na `index.html` |
 
-## 11. Riziká
+## 9. Riziká
 
 | Riziko | Dopad | Opatrenie |
 | --- | --- | --- |
@@ -235,6 +203,6 @@ karate-training-planner-app/
 | Duplicitné cviky po prechode zo staršej verzie | neprehľadný zoznam | „Vymazať všetky dáta a začať odznova“ v obrazovke Kategórie |
 | iOS zmení správanie webových aplikácií | horšia podpora offline alebo úložiska | testovať po aktualizáciách iOS podľa kritérií K15–K16 |
 
-## 12. Overenie
+## 10. Overenie
 
 Hotová verzia sa overuje akceptačnými kritériami K1–K18 v SPEC.md na iPhone s aplikáciou nainštalovanou na ploche. Kontrola kódu pred každým push: `npm run build` (typová kontrola a zostavenie) a `npm run lint`.
