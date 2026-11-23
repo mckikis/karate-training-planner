@@ -11,6 +11,30 @@
   --accent-text: #ffffff;
   --radius: 14px;
 
+  /* Colours of training types (pastel). Change them here. */
+  --tag-kumite-udery: #f6c1cc;
+  --tag-kumite-kopy: #b9dcf7;
+  --tag-kumite-zmiesany: #e6d8cc;
+  --tag-kumite-taktika: #d2c4f5;
+  --tag-kata: #c8e7f0;
+  --tag-kondicia: #ffd8a8;
+  --tag-silovy: #f3c6a5;
+  --tag-plyometria: #bfe8cf;
+  --tag-pripravka: #fbefa8;
+  /* Types added by coaches get one of these colours */
+  --tag-custom-0: #e8c5e5;
+  --tag-custom-1: #cfe3b5;
+  --tag-custom-2: #b5d3e3;
+  --tag-custom-3: #f0d9b5;
+  --tag-custom-4: #d9c9b8;
+  --tag-custom-5: #c5cbf0;
+  --tint-text: #1b2021; /* text on a coloured training */
+
+  /* Parts of a training */
+  --part-warmup: #f4a259;
+  --part-main: #6320ee;
+  --part-cooldown: #4fb3a9;
+
   color-scheme: dark;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   color: var(--text);
@@ -133,7 +157,7 @@ textarea {
 
 .topbar {
   display: grid;
-  grid-template-columns: 48px 1fr 72px;
+  grid-template-columns: 48px 1fr auto;
   align-items: center;
   min-height: 48px;
   margin-bottom: 8px;
@@ -149,6 +173,7 @@ textarea {
 .topbar-right {
   display: flex;
   justify-content: flex-end;
+  align-items: center;
 }
 
 .icon-button {
@@ -170,6 +195,9 @@ textarea {
 }
 
 .text-button {
+  border: 0;
+  background: transparent;
+  cursor: pointer;
   display: inline-flex;
   align-items: center;
   min-height: 44px;
@@ -819,4 +847,655 @@ textarea {
   margin: 0 0 12px;
   color: var(--muted);
   line-height: 1.5;
+}
+
+/* =========================================================
+   Logo, footer, favorites, hiding, sorting, done trainings
+   ========================================================= */
+
+/* Page title with the club logo */
+.page-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 4px 0 16px;
+}
+
+.page-header .page-title {
+  flex: 1;
+  margin: 0;
+}
+
+.club-logo {
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  object-fit: contain;
+}
+
+.page-header-right {
+  display: flex;
+  align-items: center;
+}
+
+/* © at the bottom of the page */
+.footer {
+  margin: 32px 0 8px;
+  text-align: center;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+/* Row with a link and a star next to it */
+.row-link {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.star-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+  border: 0;
+  border-radius: 22px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.star-on {
+  color: #ffc83d;
+}
+
+.star-mark {
+  margin-left: auto;
+  font-size: 20px;
+  color: #ffc83d;
+}
+
+/* Hidden exercises and trainings */
+.row-hidden {
+  opacity: 0.6;
+}
+
+.hidden-section {
+  margin-top: 24px;
+}
+
+/* "Zobraziť viac" under a category */
+.more-button {
+  width: 100%;
+  min-height: 44px;
+  margin-top: 8px;
+  border: 1px dashed var(--line);
+  border-radius: 12px;
+  background: transparent;
+  font-weight: 600;
+  color: var(--text);
+  cursor: pointer;
+}
+
+/* Drag handle ⠿ */
+.drag-handle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--muted);
+  cursor: grab;
+  touch-action: none; /* lets the finger drag instead of scrolling the page */
+}
+
+.dragging .row,
+.dragging .card {
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+  outline: 2px solid var(--accent);
+}
+
+.item-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/* Categories screen */
+.category-row {
+  gap: 8px;
+}
+
+.switch-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.switch-label input {
+  width: 20px;
+  height: 20px;
+  accent-color: var(--accent);
+}
+
+.danger-zone {
+  margin-top: 32px;
+}
+
+/* Done trainings */
+.tag-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.tag-done {
+  background: #1f7a4d;
+  color: #ffffff;
+}
+
+.done-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 24px;
+}
+
+.done-text {
+  margin: 0;
+  font-weight: 700;
+  color: #7ee2a8;
+}
+
+.button-wide {
+  width: 100%;
+  margin-top: 12px;
+}
+
+.button-row {
+  display: flex;
+  gap: 8px;
+}
+
+.upload-inline {
+  position: relative;
+  overflow: hidden;
+  cursor: pointer;
+}
+
+.upload-inline input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+/* =========================================================
+   Settings, per-category sorting, coloured trainings,
+   training filters, exercise sheet, picture size
+   ========================================================= */
+
+/* Category title with the ⇅ sort icon above its first exercise */
+.group-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 16px 0 4px;
+}
+
+.group-head .group-title {
+  margin: 0;
+}
+
+.sort-button {
+  margin-right: -6px;
+  color: var(--muted);
+}
+
+.sort-done {
+  color: var(--accent-text);
+  background: var(--accent);
+  border-radius: 10px;
+  padding: 0 14px;
+}
+
+/* Settings */
+.setting-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 44px;
+  cursor: pointer;
+}
+
+.setting-text {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.setting-title {
+  font-weight: 600;
+}
+
+/* iOS-style switch */
+.toggle {
+  appearance: none;
+  position: relative;
+  flex-shrink: 0;
+  width: 52px;
+  height: 32px;
+  margin: 0;
+  border-radius: 16px;
+  background: var(--bg-deep);
+  border: 1px solid var(--line);
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.toggle::after {
+  content: '';
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--muted);
+  transition: transform 0.2s;
+}
+
+.toggle:checked {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.toggle:checked::after {
+  transform: translateX(20px);
+  background: #ffffff;
+}
+
+.toggle:focus-visible {
+  outline: 2px solid var(--text);
+  outline-offset: 2px;
+}
+
+/* Prípravka / Starší / Ja */
+.segmented-3 {
+  grid-template-columns: repeat(3, 1fr);
+}
+
+/* Training coloured by its type */
+.tint-kumite-udery { --tint: var(--tag-kumite-udery); }
+.tint-kumite-kopy { --tint: var(--tag-kumite-kopy); }
+.tint-kumite-zmiesany { --tint: var(--tag-kumite-zmiesany); }
+.tint-kumite-taktika { --tint: var(--tag-kumite-taktika); }
+.tint-kata { --tint: var(--tag-kata); }
+.tint-kondicia { --tint: var(--tag-kondicia); }
+.tint-silovy { --tint: var(--tag-silovy); }
+.tint-plyometria { --tint: var(--tag-plyometria); }
+.tint-pripravka { --tint: var(--tag-pripravka); }
+.tint-custom-0 { --tint: var(--tag-custom-0); }
+.tint-custom-1 { --tint: var(--tag-custom-1); }
+.tint-custom-2 { --tint: var(--tag-custom-2); }
+.tint-custom-3 { --tint: var(--tag-custom-3); }
+.tint-custom-4 { --tint: var(--tag-custom-4); }
+.tint-custom-5 { --tint: var(--tag-custom-5); }
+
+.tinted {
+  background: var(--tint);
+  color: var(--tint-text);
+}
+
+.tinted .row-sub {
+  color: rgba(27, 32, 33, 0.72);
+}
+
+.tinted .tag:not(.tag-done) {
+  background: rgba(255, 255, 255, 0.6);
+  color: var(--tint-text);
+}
+
+.tinted .drag-handle {
+  color: var(--tint-text);
+}
+
+/* Filters above the list of trainings */
+.filters {
+  margin-bottom: 12px;
+}
+
+.filter-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.filter-grid select {
+  padding: 8px 6px;
+  text-overflow: ellipsis;
+}
+
+/* Training plan: tappable rows and the picture size switch */
+.plan-tools {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.plan-tools .hint {
+  margin: 0;
+}
+
+.size-toggle {
+  gap: 6px;
+  font-size: 14px;
+}
+
+button.plan-row {
+  width: 100%;
+  border: 0;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+
+button.plan-row:focus-visible {
+  outline: 2px solid var(--text);
+}
+
+.plan-big .plan-row {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.thumb-full {
+  width: 100%;
+  height: auto;
+  max-height: 380px;
+  object-fit: contain;
+  background: var(--bg-deep);
+}
+
+/* Exercise opened from a training */
+.sheet {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  overflow-y: auto;
+  background: var(--bg);
+}
+
+.sheet-inner {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: calc(env(safe-area-inset-top) + 8px) 16px calc(env(safe-area-inset-bottom) + 32px);
+}
+
+.sheet-clock {
+  display: block;
+  margin: 16px 0 0;
+}
+
+.sheet-nav {
+  margin-top: 20px;
+}
+
+.sheet-nav .button {
+  flex: 1;
+}
+
+.sheet-nav .button:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+/* =========================================================
+   Login, authors, "other coaches" switch, error banner
+   ========================================================= */
+
+.splash {
+  min-height: 100dvh;
+  background: var(--bg);
+}
+
+.login-page {
+  max-width: 440px;
+  padding-top: calc(env(safe-area-inset-top) + 48px);
+}
+
+.login-logo {
+  display: block;
+  width: 96px;
+  height: 96px;
+  margin: 0 auto 16px;
+  border-radius: 50%;
+  object-fit: contain;
+}
+
+.login-page .page-title,
+.login-page > .body-text {
+  text-align: center;
+}
+
+.author {
+  display: block;
+  margin: -8px 0 8px;
+  font-size: 14px;
+  color: var(--muted);
+}
+
+.others-toggle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  margin-bottom: 8px;
+  font-size: 15px;
+  cursor: pointer;
+}
+
+.author-filter {
+  margin-top: 8px;
+}
+
+.error-banner {
+  position: fixed;
+  top: calc(env(safe-area-inset-top) + 8px);
+  left: 16px;
+  right: 16px;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 608px;
+  margin: 0 auto;
+  padding: 8px 8px 8px 14px;
+  border-radius: 12px;
+  background: #7a1f33;
+  color: #ffffff;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+}
+
+.error-banner span {
+  flex: 1;
+}
+
+.error-banner .icon-button {
+  color: #ffffff;
+}
+
+/* =========================================================
+   Confirmation dialog, private items, parts of a training
+   ========================================================= */
+
+.dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(0, 0, 0, 0.6);
+}
+
+.dialog {
+  width: 100%;
+  max-width: 400px;
+  padding: 20px;
+  border-radius: var(--radius);
+  background: var(--card);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+}
+
+.dialog-text {
+  margin: 0 0 20px;
+  font-size: 17px;
+  line-height: 1.45;
+}
+
+.dialog-buttons {
+  display: flex;
+  gap: 10px;
+}
+
+.dialog-buttons .button {
+  flex: 1;
+}
+
+.button-danger {
+  background: #b3263e;
+  color: #ffffff;
+}
+
+/* Checkbox with a sentence ("Súkromný – …") */
+.check-line {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  font-size: 15px;
+  cursor: pointer;
+}
+
+.check-line input {
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  accent-color: var(--accent);
+}
+
+/* Description in the list of trainings */
+.row-desc {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  font-size: 13px;
+  line-height: 1.35;
+  opacity: 0.85;
+}
+
+/* "Plán tréningu" + generate button */
+.section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.section-head .section-title {
+  margin: 0;
+}
+
+/* Rozcvička / Hlavná časť / Záver – coloured stripe on the left */
+.part {
+  --part: var(--part-main);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 16px;
+  padding: 12px 12px 12px 14px;
+  border-left: 5px solid var(--part);
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--part) 12%, transparent);
+}
+
+.part-warmup { --part: var(--part-warmup); }
+.part-main { --part: var(--part-main); }
+.part-cooldown { --part: var(--part-cooldown); }
+
+.part-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+}
+
+.part-title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--part);
+}
+
+.part-main .part-title {
+  color: #b79cff;
+}
+
+.part-clock {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.part .plan {
+  margin-top: 0;
+}
+
+.part-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.part-row {
+  min-height: 48px;
+  padding: 4px 4px 4px 14px;
+}
+
+.part-row .row-title {
+  flex: 1;
+  font-size: 16px;
+}
+
+.part .button-outline {
+  margin-top: 0;
 }

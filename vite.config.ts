@@ -14,11 +14,17 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['iconLogo.png', 'apple-touch-icon.png'],
+      includeAssets: ['iconLogo.png', 'apple-touch-icon.png', 'katsudo-logo.png'],
+      workbox: {
+        // Precache starter pictures and videos from public/exercises/ so they work offline (K16).
+        globPatterns: ['**/*.{js,css,html,png,jpg,jpeg,gif,webp,svg,mp4,mov,webm}'],
+        maximumFileSizeToCacheInBytes: 30 * 1024 * 1024,
+      },
       manifest: {
         name: 'Karate Training Planner',
         short_name: 'Karate Planner',
-        description: 'Plan karate trainings and see how long they take.',
+        description: 'Plánovanie karate tréningov a výpočet ich trvania.',
+        lang: 'sk',
         theme_color: '#3a3335',
         background_color: '#3a3335',
         display: 'standalone',

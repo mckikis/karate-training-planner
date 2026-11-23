@@ -1,23 +1,35 @@
 import { Link, useNavigate, useParams } from 'react-router'
-import { useLiveQuery } from 'dexie-react-hooks'
-import { db } from '../db'
+import { exerciseMedia } from '../model'
+import { deleteExercise, isMine, setFavorite, setHidden, useData } from '../cloud'
 import { formatDuration, timingSummary, workPerSet } from '../time'
-import { Media, TopBar } from '../components'
+import { AuthorNote, Media, StarButton, TopBar } from '../components'
+import { confirmDialog } from '../confirm'
 
 export default function ExerciseDetailPage() {
-  const id = Number(useParams().id)
+  const id = useParams().id
   const navigate = useNavigate()
-  const exercise = useLiveQuery(() => db.exercises.get(id), [id])
-  const category = useLiveQuery(
-    () => (exercise ? db.categories.get(exercise.categoryId) : undefined),
-    [exercise?.categoryId],
-  )
+  const data = useData()
+  const exercise = data.exercises.find((e) => e.id === id)
+  const category = data.categories.find((c) => c.id === exercise?.categoryId)
 
-  if (!exercise) return null
+  if (!exercise) return data.ready ? <TopBar title="Cvik sa nenašiel" /> : null
+
+  // Only the author can change or delete an exercise; starter exercises nobody.
+  const canEdit = isMine(exercise) && !exercise.isDefault
+
+  // Hiding is per coach – the exercise stays for the others and can be shown again from "Skryté cviky".
+  function toggleHidden() {
+    setHidden(exercise!.id, !exercise!.hidden)
+    if (!exercise!.hidden) navigate('/exercises', { replace: true })
+  }
 
   async function remove() {
-    if (!window.confirm(`Delete "${exercise!.name}"? Trainings that already use it will keep it.`)) return
-    await db.exercises.delete(id)
+    const ok = await confirmDialog(
+      `Natrvalo vymazať „${exercise!.name}“? Zmizne aj ostatným trénerom. Tréningy, ktoré ho už obsahujú, ho ponechajú.`,
+      { confirmLabel: 'Vymazať', danger: true },
+    )
+    if (!ok) return
+    deleteExercise(exercise!)
     navigate('/exercises', { replace: true })
   }
 
@@ -27,13 +39,29 @@ export default function ExerciseDetailPage() {
     <div className="page">
       <TopBar
         title=""
-        right={<Link to={`/exercises/${id}/edit`} className="text-button">Edit</Link>}
+        right={
+          <>
+            {!exercise.hidden && (
+              <StarButton
+                on={!!exercise.favorite}
+                label={exercise.name}
+                onToggle={() => setFavorite(exercise.id, !exercise.favorite)}
+              />
+            )}
+            {canEdit && <Link to={`/exercises/${exercise.id}/edit`} className="text-button">Upraviť</Link>}
+          </>
+        }
       />
 
-      {exercise.media && <Media blob={exercise.media} type={exercise.mediaType} className="hero-media" />}
+      <Media {...exerciseMedia(exercise)} className="hero-media" />
 
-      <p className="eyebrow">{category?.name}</p>
+      <p className="eyebrow">
+        {category?.name}
+        {exercise.hidden && ' · skrytý'}
+        {exercise.private && ' · 🔒 súkromný'}
+      </p>
       <h1 className="page-title">{exercise.name}</h1>
+      <AuthorNote name={exercise.createdByName} />
       {exercise.description && <p className="body-text">{exercise.description}</p>}
 
       <section className="card">
@@ -46,9 +74,14 @@ export default function ExerciseDetailPage() {
         <p className="hint">Je možné zmeniť pri každom tréningu.</p>
       </section>
 
-      <button type="button" className="button button-danger-ghost" onClick={remove}>
-        Vymazať cvik
+      <button type="button" className="button button-ghost button-wide" onClick={toggleHidden}>
+        {exercise.hidden ? 'Zobraziť cvik znova' : 'Skryť cvik'}
       </button>
+      {canEdit && (
+        <button type="button" className="button button-danger-ghost" onClick={remove}>
+          Vymazať cvik
+        </button>
+      )}
     </div>
   )
 }

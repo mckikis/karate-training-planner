@@ -1,4 +1,4 @@
-import type { Timing, TrainingItem } from './db'
+import type { Section, Timing, TrainingItem } from './model'
 
 /** Seconds of work in one set. */
 export function workPerSet(t: Timing): number {
@@ -41,6 +41,46 @@ export function schedule(items: TrainingItem[]): ScheduleRow[] {
   return rows
 }
 
+/** Exercises of one part of the training (items without a part belong to the main part). */
+export function sectionItems(items: TrainingItem[], section: Section): TrainingItem[] {
+  return items.filter((item) => (item.section ?? 'main') === section)
+}
+
+export interface PlanPart {
+  start: number
+  end: number
+  items: TrainingItem[]
+}
+
+export interface TrainingPlan {
+  warmup: PlanPart // one block with a total time (no sets or reps)
+  main: ScheduleRow[] // each exercise with its own times, counted from the start of the training
+  mainStart: number
+  mainEnd: number
+  cooldown: PlanPart
+  total: number
+}
+
+/**
+ * Times of the whole training: warm-up (its total time), then the main part exercise by exercise
+ * (the break after the last main exercise is not counted), then the cool-down (its total time).
+ */
+export function trainingPlan(t: { items: TrainingItem[]; warmupSeconds?: number; cooldownSeconds?: number }): TrainingPlan {
+  const warmupEnd = Math.max(0, Math.round(t.warmupSeconds ?? 0))
+  const mainItems = sectionItems(t.items, 'main')
+  const main = schedule(mainItems).map((row) => ({ ...row, start: row.start + warmupEnd, end: row.end + warmupEnd }))
+  const mainEnd = warmupEnd + trainingSeconds(mainItems)
+  const cooldownEnd = mainEnd + Math.max(0, Math.round(t.cooldownSeconds ?? 0))
+  return {
+    warmup: { start: 0, end: warmupEnd, items: sectionItems(t.items, 'warmup') },
+    main,
+    mainStart: warmupEnd,
+    mainEnd,
+    cooldown: { start: mainEnd, end: cooldownEnd, items: sectionItems(t.items, 'cooldown') },
+    total: cooldownEnd,
+  }
+}
+
 /** "17:00" + 1020 seconds → "17:17". Seconds are shown only when they are not 0. */
 export function clockAt(startTime: string, offsetSeconds: number): string {
   const [h, m] = startTime.split(':').map(Number)
@@ -75,9 +115,9 @@ export function formatDuration(totalSeconds: number): string {
   return h > 0 ? `${h}:${String(m).padStart(2, '0')}:${sec}` : `${m}:${sec}`
 }
 
-/** "3 × 10 reps" or "2 × 30 s" */
+/** "3 × 10 opak." alebo "2 × 30 s" */
 export function timingSummary(t: Timing): string {
-  if (t.mode === 'reps') return `${t.sets} × ${t.reps} reps`
+  if (t.mode === 'reps') return `${t.sets} × ${t.reps} opak.`
   return t.workSeconds >= 60
     ? `${t.sets} × ${formatDuration(t.workSeconds)} min`
     : `${t.sets} × ${t.workSeconds} s`
@@ -85,7 +125,7 @@ export function timingSummary(t: Timing): string {
 
 export function formatDate(isoDate: string): string {
   if (!isoDate) return ''
-  return new Date(`${isoDate}T00:00:00`).toLocaleDateString('en-GB', {
+  return new Date(`${isoDate}T00:00:00`).toLocaleDateString('sk-SK', {
     weekday: 'short',
     day: 'numeric',
     month: 'short',
@@ -98,4 +138,9 @@ export function todayIso(): string {
   const month = String(d.getMonth() + 1).padStart(2, '0')
   const day = String(d.getDate()).padStart(2, '0')
   return `${d.getFullYear()}-${month}-${day}`
+}
+
+/** 1 cvik, 2 cviky, 5 cvikov */
+export function exerciseCount(n: number): string {
+  return `${n} ${n === 1 ? 'cvik' : n >= 2 && n <= 4 ? 'cviky' : 'cvikov'}`
 }

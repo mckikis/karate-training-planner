@@ -5,6 +5,11 @@ import ExerciseFormPage from './pages/ExerciseFormPage'
 import TrainingsPage from './pages/TrainingsPage'
 import TrainingDetailPage from './pages/TrainingDetailPage'
 import TrainingFormPage from './pages/TrainingFormPage'
+import CategoriesPage from './pages/CategoriesPage'
+import SettingsPage from './pages/SettingsPage'
+import LoginPage from './pages/LoginPage'
+import { useError, useSession } from './cloud'
+import { ConfirmHost } from './confirm'
 
 /** Screens with the bottom navigation. */
 function TabLayout() {
@@ -13,7 +18,7 @@ function TabLayout() {
       <main className="content">
         <Outlet />
       </main>
-      <nav className="tabbar" aria-label="Main">
+      <nav className="tabbar" aria-label="Hlavná navigácia">
         <NavLink to="/exercises" className="tab">
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true">
             <rect x="4" y="3" width="16" height="18" rx="2" />
@@ -33,15 +38,37 @@ function TabLayout() {
   )
 }
 
+/** Error of a save in the background (e.g. no permission). */
+function ErrorBanner() {
+  const [message, close] = useError()
+  if (!message) return null
+  return (
+    <div className="error-banner" role="alert">
+      <span>{message}</span>
+      <button type="button" className="icon-button small" onClick={close} aria-label="Zavrieť">
+        ✕
+      </button>
+    </div>
+  )
+}
+
 export default function App() {
+  const session = useSession()
+  if (session.status === 'loading') return <div className="splash" aria-label="Načítavam" />
+  if (session.status === 'out') return <LoginPage error={session.error} />
+
   return (
     <HashRouter>
+      <ErrorBanner />
+      <ConfirmHost />
       <Routes>
         <Route element={<TabLayout />}>
           <Route path="/exercises" element={<ExercisesPage />} />
           <Route path="/exercises/:id" element={<ExerciseDetailPage />} />
           <Route path="/trainings" element={<TrainingsPage />} />
           <Route path="/trainings/:id" element={<TrainingDetailPage />} />
+          <Route path="/categories" element={<CategoriesPage />} />
+          <Route path="/settings" element={<SettingsPage />} />
         </Route>
         <Route path="/exercises/new" element={<ExerciseFormPage />} />
         <Route path="/exercises/:id/edit" element={<ExerciseFormPage />} />

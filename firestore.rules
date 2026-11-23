@@ -1,0 +1,153 @@
+rules_version = '2';
+
+// Security rules of the Karate Training Planner (Firebase console → Firestore Database → Rules).
+//
+// Access: only coaches whose login key is in config/access (fields keys and adminKeys, both
+// arrays of strings). Removing a key from the list takes away that coach's access.
+// Everybody reads the shared data except private items (private == true: only the author);
+// only the author changes or deletes what they created; starter exercises (isDefault) can be
+// deleted by nobody.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function access() {
+      return get(/databases/$(database)/documents/config/access).data;
+    }
+    function validKey(key) {
+      return key in access().keys || key in access().adminKeys;
+    }
+    function signedIn() {
+      return request.auth != null;
+    }
+    function memberDoc() {
+      return /databases/$(database)/documents/members/$(request.auth.uid);
+    }
+    function isMember() {
+      return signedIn() && exists(memberDoc()) && validKey(get(memberDoc()).data.key);
+    }
+    function isAdmin() {
+      return isMember() && get(memberDoc()).data.key in access().adminKeys;
+    }
+    function createsAsMe() {
+      return request.resource.data.createdBy == request.auth.uid;
+    }
+    function isAuthor() {
+      return resource.data.createdBy == request.auth.uid;
+    }
+    function keepsAuthor() {
+      return request.resource.data.createdBy == resource.data.createdBy;
+    }
+    function isStarterId(id) {
+      return id.matches('s-.*');
+    }
+    // One document: public (also older ones without the field) or own.
+    function canGet() {
+      return isMember() && (resource.data.get('private', false) == false || isAuthor());
+    }
+    // A query: the app asks either for private == false or for createdBy == me.
+    function canList() {
+      return isMember() && (resource.data.private == false || isAuthor());
+    }
+    function privateFlagValid() {
+      return request.resource.data.private is bool;
+    }
+
+    // The list of login keys – nobody can read it from the app.
+    match /config/{document} {
+      allow read, write: if false;
+    }
+
+    // Name and key of one coach – only for themselves.
+    match /members/{uid} {
+      allow read: if signedIn() && request.auth.uid == uid;
+      allow create, update: if signedIn() && request.auth.uid == uid
+        && request.resource.data.name is string
+        && request.resource.data.name.size() > 0
+        && request.resource.data.name.size() <= 40
+        && validKey(request.resource.data.key)
+        && request.resource.data.admin == (request.resource.data.key in access().adminKeys);
+      allow delete: if false;
+    }
+
+    // Favourites, hidden items and own order of one coach.
+    match /prefs/{uid} {
+      allow read, write: if isMember() && request.auth.uid == uid;
+    }
+
+    match /categories/{id} {
+      allow get: if canGet();
+      allow list: if canList();
+      allow create: if isMember() && privateFlagValid()
+        && (createsAsMe()
+          || (isStarterId(id) && request.resource.data.createdBy == 'starter' && request.resource.data.private == false));
+      allow update: if isMember() && (
+        (isAuthor() && keepsAuthor() && privateFlagValid())
+        // starter categories saved before private items existed are marked public
+        || (resource.data.createdBy == 'starter'
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['private'])
+          && request.resource.data.private == false)
+      );
+      allow delete: if false;
+    }
+
+    // Training types added by coaches – everybody uses them.
+    match /trainingTypes/{id} {
+      allow read: if isMember();
+      allow create: if isMember() && createsAsMe()
+        && request.resource.data.name is string
+        && request.resource.data.name.size() > 0
+        && request.resource.data.name.size() <= 40;
+      allow update: if isMember() && isAuthor() && keepsAuthor();
+      allow delete: if isMember() && isAuthor();
+    }
+
+    match /exercises/{id} {
+      allow get: if canGet();
+      allow list: if canList();
+      allow create: if isMember() && privateFlagValid() && (
+        (createsAsMe()
+          && request.resource.data.isDefault == false
+          && (request.resource.data.byAdmin == false || isAdmin()))
+        || (isStarterId(id)
+          && request.resource.data.createdBy == 'starter'
+          && request.resource.data.isDefault == true
+          && request.resource.data.private == false)
+      );
+      allow update: if isMember() && (
+        (isAuthor()
+          && resource.data.isDefault == false
+          && keepsAuthor()
+          && request.resource.data.isDefault == false
+          && request.resource.data.byAdmin == resource.data.byAdmin
+          && privateFlagValid())
+        // starter exercises: the app only updates the picture file from starterData.ts
+        // and marks older ones public
+        || (resource.data.isDefault == true
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['mediaFile', 'private'])
+          && request.resource.data.get('private', false) == false)
+      );
+      allow delete: if isMember() && isAuthor() && resource.data.isDefault == false;
+    }
+
+    match /trainings/{id} {
+      allow get: if canGet();
+      allow list: if canList();
+      allow create: if isMember() && createsAsMe() && privateFlagValid();
+      allow update: if isMember() && isAuthor() && keepsAuthor() && privateFlagValid();
+      allow delete: if isMember() && isAuthor();
+    }
+
+    // Uploaded pictures and videos, split into pieces of 900 kB.
+    match /media/{id} {
+      allow read: if isMember();
+      allow create: if isMember() && createsAsMe();
+      allow delete: if isMember() && isAuthor();
+
+      match /chunks/{chunk} {
+        allow read: if isMember();
+        allow create, delete: if isMember()
+          && get(/databases/$(database)/documents/media/$(id)).data.createdBy == request.auth.uid;
+      }
+    }
+  }
+}

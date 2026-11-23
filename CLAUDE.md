@@ -1,6 +1,6 @@
 # Karate Training Planner – project rules
 
-Installable web app (PWA) for karate coaches of the club Katsudo Sabinov. Coaches keep a library of exercises (with photos, GIFs or videos) and build trainings whose duration and time schedule the app calculates. All data lives only on the phone (IndexedDB). There is no backend.
+Installable web app (PWA) for karate coaches of the club Katsudo Sabinov. Coaches keep a library of exercises (with photos, GIFs or videos) and build trainings whose duration and time schedule the app calculates. Coaches log in with a first name and a personal login key; exercises, trainings and media are shared through Firebase (Firestore, with an offline copy in the phone). Setup of the Firebase project: `FIREBASE.md`.
 
 - What and why: `SPEC.md` (Slovak), `project.md`
 - How (implementation spec for agents): `karate-training-planner-design.md`
@@ -24,7 +24,8 @@ If `npm install` / `npm ci` fails with `UNABLE_TO_VERIFY_LEAF_SIGNATURE` (networ
 ## Conventions
 
 - **Language:** all user-facing text is Slovak. Code, identifiers, comments and commit messages are English.
-- **Data:** the database is defined only in `src/db.ts` (Dexie). Never edit an existing `db.version(n)` block – a schema change is a new version with its own `upgrade()`.
+- **Data:** shared data (Firestore) and login live only in `src/cloud.ts`; data types and pure helpers in `src/model.ts`. Access rules are in `firestore.rules` – keep them in sync with `src/cloud.ts`. The local Dexie database in `src/db.ts` holds only the media cache and data of older app versions (moved to Firebase once). Never edit an existing `db.version(n)` block – a schema change is a new version with its own `upgrade()`.
+- **Ownership:** only the author (`createdBy`) may change or delete an exercise, category or training; starter exercises (`isDefault`) are never deleted. Favourites, hidden items and order are per coach (`prefs/{uid}`).
 - **Starter data:** default categories and exercises live in `src/starterData.ts`; their media files in `public/exercises/`.
 - **Units:** all durations are integer seconds (except `secondsPerRep`, which may be a decimal). Dates are `YYYY-MM-DD` strings, times `HH:MM`.
 - **Time maths** belongs in `src/time.ts` as pure functions with unit tests – never inline in components.
