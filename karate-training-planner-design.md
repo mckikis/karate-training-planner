@@ -2,6 +2,8 @@
 
 > **Purpose of this document:** implementation spec for an LLM/developer. It fixes every open decision from the acceptance criteria (`SPEC.md`), defines the data model, module interfaces, business rules and UI, and maps each acceptance criterion to a verifiable behaviour. Where this document says MUST, it is a requirement; where it says SHOULD, deviate only with a stated reason. Project conventions and commands are in `CLAUDE.md`.
 
+> **Status (November 2026):** steps 1–6 of §12 (version 1) are implemented. The app has since moved on to **version 2** (Firebase login and shared data in `src/cloud.ts`, types in `src/model.ts`, full-screen timer, training sections, groups) – those features are listed as out of scope in §14 and are described in `SPEC.md` §9 and `DESIGN.md`. Where this document and the code differ (e.g. data layer in `src/db.ts`, `resetAllData`, `src/lists.ts`, Vitest tests), the code and `DESIGN.md` are authoritative. The test infrastructure of step 1 is not in the current codebase; agents run the commands from `CLAUDE.md` that exist.
+
 ---
 
 ## 0. One-paragraph summary
@@ -428,15 +430,18 @@ After step 6 the human runs the manual rows of §10 on the iPhone, then pushes t
 
 ## 14. Out of scope (v1)
 
-- Full-screen timer during the training (next version, Epic 6 in `project.md`).
-- Accounts, server, synchronisation, sharing trainings between coaches.
-- Export, backup, import.
-- Statistics, attendance of children.
-- Renaming or deleting categories.
-- App Store publishing, Android-specific testing.
+Not part of v1. The items marked *v2* were added in the next version (see `SPEC.md` §9, `DESIGN.md`).
+
+- Full-screen timer during the training – *v2: Časomiera tab, custom or per training, swap during a set, atoshi baraku.*
+- Accounts, server, synchronisation, sharing trainings between coaches – *v2: login with name + key, Firebase Firestore, private items, admin role.*
+- Export, backup, import – *v2: data live in Firebase; no file export yet.*
+- Training sections, template and copy of a training, groups, custom training types – *v2.*
+- Renaming or deleting categories – *v2: authors and the admin delete categories; renaming not yet.*
+- Statistics, attendance of children – not planned.
+- App Store publishing, Android-specific testing – not planned.
 
 ## 15. Open questions (do not block v1)
 
-- How will coaches share trainings later: file export or a shared server database?
-- Should the coach be chosen from a list of club coaches instead of free text?
-- Should starter exercises be permanently deletable?
+- How will coaches share trainings later: file export or a shared server database? – *Answered in v2: shared Firestore database.*
+- Should the coach be chosen from a list of club coaches instead of free text? – *v2: the author is the logged-in coach; "who led it" stays free text.*
+- Should starter exercises be permanently deletable? – *v2: only by the admin; other coaches hide them.*

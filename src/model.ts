@@ -10,6 +10,9 @@ export interface Timing {
   secondsPerRep: number
   workSeconds: number
   restBetweenSets: number
+  switchEvery?: number // partners swap roles every N seconds of a set (0 / missing = no swap)
+  switchSeconds?: number // time for the swap
+  atoshi?: boolean // "Atoshi baraku": the timer beeps 15 s before the end of each work part
 }
 
 /** Who created a category, exercise or training. */
@@ -94,17 +97,27 @@ export interface TrainingType extends Author {
   name: string
 }
 
-/** Settings of one coach that are not shared: favourites, hidden items and own order. */
+/**
+ * Settings of one coach that are not shared: favourites, hidden items, own order and own
+ * "Len na čas" of categories. The admin's order and "Len na čas" are saved for everybody instead.
+ */
 export interface Prefs {
   favorites: Record<string, true>
   hidden: Record<string, true>
   order: Record<string, number>
+  timeOnly: Record<string, boolean>
 }
 
 export const STARTER_AUTHOR_ID = 'starter'
 
 /** Who the training is for. */
 export const TRAINING_GROUPS = ['Prípravka', 'Starší', 'Ja']
+
+/** Usual start of a training of the group – filled in when the group is chosen. */
+export const GROUP_START_TIMES: Record<string, string> = {
+  'Prípravka': '16:30',
+  'Starší': '17:00',
+}
 
 /** Training types. Each has its colour in index.css (--tag-…). Coaches can add their own types. */
 export const TRAINING_TAGS = [
@@ -176,6 +189,9 @@ export function timingOf(t: Timing): Timing {
     secondsPerRep: t.secondsPerRep,
     workSeconds: t.workSeconds,
     restBetweenSets: t.restBetweenSets,
+    switchEvery: t.switchEvery ?? 0,
+    switchSeconds: t.switchSeconds ?? 0,
+    atoshi: !!t.atoshi,
   }
 }
 

@@ -44,21 +44,28 @@ Pravidlá pre kľúče:
 
 ## Ako to funguje v appke
 
-| Čo | Kto |
-| --- | --- |
-| vidieť predvolené cviky a cviky správcu | každý |
-| vidieť cudzie cviky a tréningy | každý, po zapnutí „Zobraziť aj … iných trénerov“ |
-| upraviť / vymazať cvik alebo tréning | len autor |
-| vymazať predvolený cvik (zo `starterData.ts`) | nikto |
-| skryť cvik alebo tréning, obľúbené, vlastné poradie cvikov a kategórií | každý sám pre seba |
-| súkromný cvik, kategória alebo tréning (🔒) | vidí len autor |
-| nový typ tréningu | pridá hocikto, používajú ho všetci |
+| Čo | Tréner | Správca (kľúč v `adminKeys`) |
+| --- | --- | --- |
+| vidieť predvolené cviky a cviky správcu | áno | áno |
+| vidieť cudzie cviky a tréningy | po zapnutí „Zobraziť aj … iných trénerov“ | rovnako |
+| súkromný cvik, kategória alebo tréning (🔒) | vidí len autor | vidí len autor |
+| upraviť / vymazať cvik, kategóriu alebo tréning | len svoje | všetky |
+| vymazať predvolený cvik (zo `starterData.ts`) | nie, môže ho skryť | áno, appka ho už znova nepridá |
+| poradie cvikov a kategórií, „Len na čas“ | len pre seba | pre všetkých |
+| obľúbené, skryté cviky a tréningy | pre seba | pre seba |
+| nový typ tréningu | pridá, používajú ho všetci | rovnako |
 
 **Po každej zmene súboru `firestore.rules` ho treba znova vložiť do Firebase (krok 3) a dať Publish.**
 
-Pri každom cviku a tréningu appka ukazuje meno autora. Meno sa dá zmeniť v **Nastavenia → Účet**.
+Meno autora je v detaile cviku a tréningu. Meno sa dá zmeniť v **Nastavenia → Účet**.
 
 Pri prvom prihlásení na telefóne, kde už boli dáta zo staršej verzie appky, sa vlastné cviky (aj s obrázkami) a tréningy z telefónu nahrajú do Firebase pod prihláseného trénera.
+
+## Ako pridať obsah pre všetkých
+
+- **Kategórie a cviky:** správca ich pridá priamo v appke. Cviky správcu vidí každý tréner.
+- **Fotka alebo video k predvolenému cviku:** správca otvorí cvik → *Upraviť cvik* → vyberie súbor z telefónu.
+- **Predvolené cviky v kóde:** `src/starterData.ts` (+ súbory v `public/exercises/`), dostanú sa ku všetkým po push do `main`.
 
 ## Limity zadarmo (plán Spark)
 

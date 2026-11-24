@@ -5,12 +5,39 @@ export function workPerSet(t: Timing): number {
   return t.mode === 'time' ? t.workSeconds : t.reps * t.secondsPerRep
 }
 
+/** How many times the partners swap roles in one set ("Výmena" every switchEvery seconds of work). */
+export function switchCount(t: Timing): number {
+  if (!t.switchEvery || t.switchEvery <= 0) return 0
+  return Math.max(0, Math.ceil(workPerSet(t) / t.switchEvery - 1e-9) - 1)
+}
+
+/** One set including the swaps: 90 s with a swap after 45 s and 5 s for it → 95 s. */
+export function setSeconds(t: Timing): number {
+  return workPerSet(t) + switchCount(t) * (t.switchSeconds ?? 0)
+}
+
+/** Parts of one set for the timer: work, swap, work, … (work split every switchEvery seconds). */
+export function setParts(t: Timing): { kind: 'work' | 'switch'; seconds: number }[] {
+  const work = Math.max(1, Math.round(workPerSet(t)))
+  const swaps = switchCount(t)
+  if (swaps === 0) return [{ kind: 'work', seconds: work }]
+  const parts: { kind: 'work' | 'switch'; seconds: number }[] = []
+  let left = work
+  for (let i = 0; i <= swaps; i++) {
+    const chunk = Math.min(left, Math.round(t.switchEvery!))
+    parts.push({ kind: 'work', seconds: chunk })
+    left -= chunk
+    if (i < swaps && (t.switchSeconds ?? 0) > 0) parts.push({ kind: 'switch', seconds: Math.round(t.switchSeconds!) })
+  }
+  return parts
+}
+
 /**
  * Time of one exercise in a training:
- * sets × work + rests between sets + rest before the next exercise (not after the last one).
+ * sets × (work + swaps) + rests between sets + rest before the next exercise (not after the last one).
  */
 export function itemSeconds(item: TrainingItem, isLast: boolean): number {
-  const work = item.sets * workPerSet(item)
+  const work = item.sets * setSeconds(item)
   const rests = Math.max(0, item.sets - 1) * item.restBetweenSets
   const after = isLast ? 0 : item.restAfter
   return Math.round(work + rests + after)
@@ -115,12 +142,16 @@ export function formatDuration(totalSeconds: number): string {
   return h > 0 ? `${h}:${String(m).padStart(2, '0')}:${sec}` : `${m}:${sec}`
 }
 
-/** "3 × 10 opak." alebo "2 × 30 s" */
+/** "3 × 10 opak." alebo "2 × 30 s" (+ " · výmena po 45 s") */
 export function timingSummary(t: Timing): string {
-  if (t.mode === 'reps') return `${t.sets} × ${t.reps} opak.`
-  return t.workSeconds >= 60
-    ? `${t.sets} × ${formatDuration(t.workSeconds)} min`
-    : `${t.sets} × ${t.workSeconds} s`
+  const base =
+    t.mode === 'reps'
+      ? `${t.sets} × ${t.reps} opak.`
+      : t.workSeconds >= 60
+        ? `${t.sets} × ${formatDuration(t.workSeconds)} min`
+        : `${t.sets} × ${t.workSeconds} s`
+  const swap = switchCount(t) > 0 ? ` · výmena po ${t.switchEvery} s` : ''
+  return `${base}${swap}${t.atoshi ? ' · atoshi' : ''}`
 }
 
 export function formatDate(isoDate: string): string {
@@ -143,4 +174,103 @@ export function todayIso(): string {
 /** 1 cvik, 2 cviky, 5 cvikov */
 export function exerciseCount(n: number): string {
   return `${n} ${n === 1 ? 'cvik' : n >= 2 && n <= 4 ? 'cviky' : 'cvikov'}`
+}
+
+// ---------- Timer (Časomiera) ----------
+
+/** One step of the timer: work (blue), rest or the countdown before the start (grey). */
+export interface TimerPhase {
+  kind: 'prep' | 'work' | 'switch' | 'rest'
+  seconds: number
+  exercise: string // shown small in the top left corner
+  set: number // "Séria 2 / 5" in the top right corner
+  sets: number
+  next: string // next exercise, shown in the bottom right corner
+  atoshi?: boolean // "Atoshi baraku" 15 s before the end of this work part
+}
+
+/** Fills in "next" – the next exercise (after the countdown the first one; '' at the end). */
+function withNext(phases: Omit<TimerPhase, 'next'>[]): TimerPhase[] {
+  return phases.map((phase, i) => {
+    const following = phases
+      .slice(i + 1)
+      .find((p) => p.kind === 'work' && (phase.kind === 'prep' || p.exercise !== phase.exercise))
+    return { ...phase, next: following?.exercise ?? '' }
+  })
+}
+
+/** Own timer: countdown, then sets × work with a rest between the sets. */
+export function customTimerPhases(
+  t: {
+    sets: number
+    workSeconds: number
+    restSeconds: number
+    prepSeconds: number
+    switchEvery?: number
+    switchSeconds?: number
+    atoshi?: boolean
+  },
+  name = 'Časomiera',
+): TimerPhase[] {
+  const sets = Math.max(1, Math.round(t.sets))
+  const phases: Omit<TimerPhase, 'next'>[] = []
+  const parts = setParts({
+    mode: 'time',
+    sets,
+    reps: 0,
+    secondsPerRep: 0,
+    workSeconds: t.workSeconds,
+    restBetweenSets: t.restSeconds,
+    switchEvery: t.switchEvery,
+    switchSeconds: t.switchSeconds,
+  })
+  if (t.prepSeconds > 0) phases.push({ kind: 'prep', seconds: Math.round(t.prepSeconds), exercise: name, set: 1, sets })
+  for (let set = 1; set <= sets; set++) {
+    parts.forEach((part) => phases.push({ ...part, exercise: name, set, sets, atoshi: part.kind === 'work' && !!t.atoshi }))
+    if (set < sets && t.restSeconds > 0) phases.push({ kind: 'rest', seconds: Math.round(t.restSeconds), exercise: name, set, sets })
+  }
+  return withNext(phases)
+}
+
+/**
+ * Timer of a whole training: countdown, warm-up (one block), every exercise of the main part
+ * set by set with the rests between sets and the breaks after it, cool-down (one block).
+ */
+export function trainingTimerPhases(
+  t: { items: TrainingItem[]; warmupSeconds?: number; cooldownSeconds?: number },
+  prepSeconds: number,
+): TimerPhase[] {
+  const plan = trainingPlan(t)
+  const phases: Omit<TimerPhase, 'next'>[] = []
+  const blockName = (label: string, items: TrainingItem[]) => (items.length ? `${label}: ${items.map((i) => i.name).join(', ')}` : label)
+  const warmup = blockName('Rozcvička', plan.warmup.items)
+
+  if (prepSeconds > 0) phases.push({ kind: 'prep', seconds: Math.round(prepSeconds), exercise: 'Príprava', set: 1, sets: 1 })
+  if (plan.warmup.end > 0) phases.push({ kind: 'work', seconds: plan.warmup.end, exercise: warmup, set: 1, sets: 1 })
+  plan.main.forEach(({ item, breakAfter }) => {
+    const sets = Math.max(1, item.sets)
+    for (let set = 1; set <= sets; set++) {
+      setParts(item).forEach((part) =>
+        phases.push({ ...part, exercise: item.name, set, sets, atoshi: part.kind === 'work' && !!item.atoshi }),
+      )
+      if (set < sets && item.restBetweenSets > 0) {
+        phases.push({ kind: 'rest', seconds: Math.round(item.restBetweenSets), exercise: item.name, set, sets })
+      }
+    }
+    if (breakAfter > 0) phases.push({ kind: 'rest', seconds: Math.round(breakAfter), exercise: 'Prestávka', set: sets, sets })
+  })
+  const cooldownSeconds = plan.cooldown.end - plan.cooldown.start
+  if (cooldownSeconds > 0) {
+    phases.push({ kind: 'work', seconds: cooldownSeconds, exercise: blockName('Záver', plan.cooldown.items), set: 1, sets: 1 })
+  }
+  return withNext(phases)
+}
+
+/** Number of sets (a set split by swaps counts once). */
+export function timerSetCount(phases: TimerPhase[]): number {
+  return phases.filter((p, i) => p.kind === 'work' && phases[i - 1]?.kind !== 'switch').length
+}
+
+export function timerTotalSeconds(phases: TimerPhase[]): number {
+  return phases.reduce((sum, p) => sum + p.seconds, 0)
 }

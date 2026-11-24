@@ -69,7 +69,7 @@ export default function ExercisesPage() {
       />
 
       {sorting ? (
-        <p className="hint">Cvik posunieš potiahnutím za ⠿ vpravo. Keď skončíš, klikni na Hotovo. Obľúbené cviky sú mimo tohto režimu vždy hore.</p>
+        <p className="hint">Cvik posunieš potiahnutím za ⠿ vpravo.</p>
       ) : (
         <input
           className="search"
@@ -109,7 +109,6 @@ export default function ExercisesPage() {
         <button type="button" className="chip chip-dashed" onClick={() => setAddingCategory(true)}>
           + Kategória
         </button>
-        <Link to="/categories" className="chip chip-dashed">⇅ Poradie kategórií</Link>
       </div>
 
       {addingCategory && (
@@ -179,7 +178,7 @@ export default function ExercisesPage() {
                 <SortableList
                   items={[...inCategory].sort(byOrder)}
                   getId={(e) => e.id}
-                  onReorder={(list) => saveOrder(list.map((e) => e.id))}
+                  onReorder={(list) => saveOrder('exercises', list.map((e) => e.id))}
                   renderItem={(e, handle) => <ExerciseRow exercise={e} handle={handle} play={autoplayVideos} />}
                 />
               </section>
@@ -250,7 +249,7 @@ function ExerciseRow({ exercise, handle, play }: { exercise: Exercise; handle?: 
           {exercise.name}
         </span>
         <span className="row-sub">
-          {timingSummary(exercise)} · {exercise.createdByName}
+          {timingSummary(exercise)}
         </span>
       </span>
     </>

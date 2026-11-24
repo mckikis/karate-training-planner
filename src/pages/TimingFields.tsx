@@ -1,5 +1,6 @@
 import type { Mode, Timing } from '../model'
 import { DurationField, NumberField } from '../components'
+import { workPerSet } from '../time'
 
 /**
  * Sets, reps or time, and rest – shared by the exercise form and the training form.
@@ -61,6 +62,37 @@ export function TimingFields<T extends Timing>({
           suffix="s"
         />
       </div>
+
+      {/* Partners swap roles during a set, e.g. every 45 s, with 5 s for the swap. */}
+      <label className="check-line">
+        <input
+          type="checkbox"
+          checked={(value.switchEvery ?? 0) > 0}
+          onChange={(e) =>
+            set(
+              e.target.checked
+                ? { switchEvery: Math.max(1, Math.round(workPerSet(value) / 2)) || 30, switchSeconds: value.switchSeconds || 5 }
+                : { switchEvery: 0 },
+            )
+          }
+        />
+        Výmena počas série (dvojice si menia úlohy)
+      </label>
+      {(value.switchEvery ?? 0) > 0 && (
+        <div className="grid-3">
+          <DurationField label="Výmena po" value={value.switchEvery ?? 0} onChange={(switchEvery) => set({ switchEvery: Math.max(1, switchEvery) })} />
+          <NumberField
+            label="Čas na výmenu"
+            value={value.switchSeconds ?? 5}
+            onChange={(switchSeconds) => set({ switchSeconds })}
+            suffix="s"
+          />
+        </div>
+      )}
+      <label className="check-line">
+        <input type="checkbox" checked={!!value.atoshi} onChange={(e) => set({ atoshi: e.target.checked })} />
+        Atoshi baraku
+      </label>
     </div>
   )
 }

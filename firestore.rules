@@ -5,8 +5,8 @@ rules_version = '2';
 // Access: only coaches whose login key is in config/access (fields keys and adminKeys, both
 // arrays of strings). Removing a key from the list takes away that coach's access.
 // Everybody reads the shared data except private items (private == true: only the author);
-// only the author changes or deletes what they created; starter exercises (isDefault) can be
-// deleted by nobody.
+// the author changes or deletes what they created; the admin (key in adminKeys) changes and
+// deletes everything they can see – also the starter exercises – and the changes are for all.
 service cloud.firestore {
   match /databases/{database}/documents {
 
@@ -51,10 +51,27 @@ service cloud.firestore {
     function privateFlagValid() {
       return request.resource.data.private is bool;
     }
+    // The admin may change a document of somebody else, but not who created it,
+    // whether it is a starter item or whether it is private.
+    function adminKeepsIdentity() {
+      return isAdmin()
+        && keepsAuthor()
+        && request.resource.data.get('isDefault', false) == resource.data.get('isDefault', false)
+        && request.resource.data.get('byAdmin', false) == resource.data.get('byAdmin', false)
+        && request.resource.data.get('starterKey', '') == resource.data.get('starterKey', '')
+        && request.resource.data.get('private', false) == resource.data.get('private', false);
+    }
 
     // The list of login keys – nobody can read it from the app.
     match /config/{document} {
       allow read, write: if false;
+    }
+
+    // Settings of the whole club, changed by the admin (e.g. starter exercises the admin deleted,
+    // so the app does not add them again).
+    match /appSettings/{document} {
+      allow read: if isMember();
+      allow write: if isAdmin();
     }
 
     // Name and key of one coach – only for themselves.
@@ -82,12 +99,14 @@ service cloud.firestore {
           || (isStarterId(id) && request.resource.data.createdBy == 'starter' && request.resource.data.private == false));
       allow update: if isMember() && (
         (isAuthor() && keepsAuthor() && privateFlagValid())
+        || adminKeepsIdentity()
         // starter categories saved before private items existed are marked public
         || (resource.data.createdBy == 'starter'
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['private'])
           && request.resource.data.private == false)
       );
-      allow delete: if false;
+      // own categories; the admin deletes any (the app deletes the exercises in it too)
+      allow delete: if isMember() && (isAuthor() || isAdmin());
     }
 
     // Training types added by coaches – everybody uses them.
@@ -97,8 +116,8 @@ service cloud.firestore {
         && request.resource.data.name is string
         && request.resource.data.name.size() > 0
         && request.resource.data.name.size() <= 40;
-      allow update: if isMember() && isAuthor() && keepsAuthor();
-      allow delete: if isMember() && isAuthor();
+      allow update: if isMember() && ((isAuthor() && keepsAuthor()) || adminKeepsIdentity());
+      allow delete: if isMember() && (isAuthor() || isAdmin());
     }
 
     match /exercises/{id} {
@@ -120,33 +139,38 @@ service cloud.firestore {
           && request.resource.data.isDefault == false
           && request.resource.data.byAdmin == resource.data.byAdmin
           && privateFlagValid())
+        // the admin edits every exercise (name, picture, timing, order…)
+        || adminKeepsIdentity()
         // starter exercises: the app only updates the picture file from starterData.ts
         // and marks older ones public
         || (resource.data.isDefault == true
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['mediaFile', 'private'])
           && request.resource.data.get('private', false) == false)
       );
-      allow delete: if isMember() && isAuthor() && resource.data.isDefault == false;
+      // own exercises; the admin deletes any, also starter ones
+      allow delete: if isMember() && ((isAuthor() && resource.data.isDefault == false) || isAdmin());
     }
 
     match /trainings/{id} {
       allow get: if canGet();
       allow list: if canList();
       allow create: if isMember() && createsAsMe() && privateFlagValid();
-      allow update: if isMember() && isAuthor() && keepsAuthor() && privateFlagValid();
-      allow delete: if isMember() && isAuthor();
+      allow update: if isMember() && ((isAuthor() && keepsAuthor() && privateFlagValid()) || adminKeepsIdentity());
+      allow delete: if isMember() && (isAuthor() || isAdmin());
     }
 
     // Uploaded pictures and videos, split into pieces of 900 kB.
     match /media/{id} {
       allow read: if isMember();
       allow create: if isMember() && createsAsMe();
-      allow delete: if isMember() && isAuthor();
+      allow delete: if isMember() && (isAuthor() || isAdmin());
 
       match /chunks/{chunk} {
         allow read: if isMember();
-        allow create, delete: if isMember()
+        allow create: if isMember()
           && get(/databases/$(database)/documents/media/$(id)).data.createdBy == request.auth.uid;
+        allow delete: if isMember()
+          && (get(/databases/$(database)/documents/media/$(id)).data.createdBy == request.auth.uid || isAdmin());
       }
     }
   }

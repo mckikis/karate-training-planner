@@ -147,7 +147,7 @@ export function PageHeader({ title, right }: { title: string; right?: ReactNode 
 
 /** Signature at the bottom of the main screens. */
 export function Footer() {
-  return <footer className="footer">© Kristína Simčíková 2026</footer>
+  return <footer className="footer">© Kristína Šimčíková 2026</footer>
 }
 
 /**

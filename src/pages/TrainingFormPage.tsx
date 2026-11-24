@@ -4,7 +4,9 @@ import {
   byFavoriteThenOrder,
   byOrder,
   exerciseMedia,
+  GROUP_START_TIMES,
   sectionLabel,
+  tagClass,
   timingOf,
   toTimeMode,
   TRAINING_GROUPS,
@@ -12,14 +14,14 @@ import {
   type Category,
   type Exercise,
   type Section,
+  type Training,
   type TrainingItem,
 } from '../model'
-import { addTrainingType, isMine, saveTraining, useData } from '../cloud'
-import { clockAt, formatDuration, sectionItems, todayIso, trainingPlan, trainingSeconds } from '../time'
+import { addTrainingType, canEditTraining, isMine, saveTraining, useData } from '../cloud'
+import { clockAt, formatDate, formatDuration, sectionItems, todayIso, trainingPlan, trainingSeconds } from '../time'
 import { DurationField, Thumb, TopBar } from '../components'
 import { SortableList } from '../sortable'
 import { useSettings } from '../settings'
-import { confirmDialog } from '../confirm'
 import { TRAINING_TEMPLATE } from '../trainingTemplate'
 import { TimingFields } from './TimingFields'
 
@@ -64,6 +66,7 @@ export default function TrainingFormPage() {
   const [warmupSeconds, setWarmupSeconds] = useState(0)
   const [cooldownSeconds, setCooldownSeconds] = useState(0)
   const [picking, setPicking] = useState<Section | null>(null)
+  const [copying, setCopying] = useState(false)
   const [addingType, setAddingType] = useState(false)
   const [newType, setNewType] = useState('')
   const [error, setError] = useState('')
@@ -145,14 +148,25 @@ export default function TrainingFormPage() {
     setMain((current) => current.map((old, i) => (i === index ? item : old)))
   }
 
-  async function regenerate() {
-    if (warmup.length + main.length + cooldown.length > 0) {
-      const ok = await confirmDialog('Nahradiť cviky vygenerovaným tréningom (20 min rozcvička, 60 min hlavná časť, 10 min záver)?', {
-        confirmLabel: 'Vygenerovať',
-      })
-      if (!ok) return
-    }
-    generate()
+  /** Fills the form from an existing training; the date stays today, the copy is a new training. */
+  function copyFrom(t: Training) {
+    setName(t.name)
+    setStartTime(t.startTime ?? startTime)
+    setTag(t.tag)
+    setGroup(t.group ?? '')
+    setDescription(t.description)
+    setWarmup(sectionItems(t.items, 'warmup'))
+    setMain(sectionItems(t.items, 'main'))
+    setCooldown(sectionItems(t.items, 'cooldown'))
+    setWarmupSeconds(t.warmupSeconds ?? 0)
+    setCooldownSeconds(t.cooldownSeconds ?? 0)
+    setCopying(false)
+  }
+
+  function chooseGroup(g: string) {
+    const next = group === g ? '' : g
+    setGroup(next)
+    if (GROUP_START_TIMES[next]) setStartTime(GROUP_START_TIMES[next])
   }
 
   function addType() {
@@ -194,8 +208,12 @@ export default function TrainingFormPage() {
     else navigate(`/trainings/${id}`, { replace: true })
   }
 
-  if (editing && !isMine(editing)) {
+  if (editing && !canEditTraining(editing)) {
     return <TopBar title="Tento tréning môže upraviť len jeho autor" />
+  }
+
+  if (copying) {
+    return <TrainingCopyList onPick={copyFrom} onCancel={() => setCopying(false)} />
   }
 
   if (picking) {
@@ -326,7 +344,7 @@ export default function TrainingFormPage() {
                 key={g}
                 className={`segment ${group === g ? 'segment-on' : ''}`}
                 aria-pressed={group === g}
-                onClick={() => setGroup(group === g ? '' : g)}
+                onClick={() => chooseGroup(g)}
               >
                 {g}
               </button>
@@ -348,9 +366,11 @@ export default function TrainingFormPage() {
 
         <div className="section-head">
           <h2 className="section-title">Plán tréningu</h2>
-          <button type="button" className="button button-small" onClick={regenerate}>
-            ⚡ Vygenerovať tréning
-          </button>
+          {!editingId && (
+            <button type="button" className="button button-small" onClick={() => setCopying(true)}>
+              📋 Kopírovať tréning
+            </button>
+          )}
         </div>
 
         {simplePart('warmup', warmupSeconds, setWarmupSeconds, plan.warmup.start, plan.warmup.end)}
@@ -541,6 +561,64 @@ function ExercisePicker({
         <span className="total-label">Vybrané: {selectedIds.length}</span>
         <button type="button" className="button button-primary" onClick={onDone}>Hotovo</button>
       </div>
+    </div>
+  )
+}
+
+/** List of trainings to copy into the new one (own and – with "iní tréneri" – the others'). */
+function TrainingCopyList({ onPick, onCancel }: { onPick: (t: Training) => void; onCancel: () => void }) {
+  const data = useData()
+  const { othersTrainings } = useSettings()
+  const [search, setSearch] = useState('')
+  const query = search.trim().toLowerCase()
+  const trainings = data.trainings
+    .filter((t) => (isMine(t) || othersTrainings) && (!query || t.name.toLowerCase().includes(query)))
+    .sort((a, b) => b.date.localeCompare(a.date) || (b.startTime ?? '').localeCompare(a.startTime ?? ''))
+
+  return (
+    <div className="page page-form">
+      <header className="topbar">
+        <button type="button" className="icon-button" onClick={onCancel} aria-label="Späť">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M15 5l-7 7 7 7" />
+          </svg>
+        </button>
+        <h1 className="topbar-title">Kopírovať tréning</h1>
+        <span />
+      </header>
+      <p className="hint">Vyber tréning. Skopírujú sa jeho cviky, časy, typ aj popis; potom ho môžeš upraviť.</p>
+      <input
+        className="search"
+        type="search"
+        placeholder="Hľadať tréning"
+        aria-label="Hľadať tréning"
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+      />
+      {trainings.length === 0 ? (
+        <p className="hint">Žiadny tréning na kopírovanie.</p>
+      ) : (
+        <ul className="list">
+          {trainings.map((t) => {
+            const tint = tagClass(t.tag)
+            return (
+              <li key={t.id}>
+                <button type="button" className={`row training-row copy-row ${tint ? `tinted ${tint}` : ''}`} onClick={() => onPick(t)}>
+                  <span className="row-main">
+                    <span className="row-title">{t.name}</span>
+                    <span className="row-sub">
+                      {formatDate(t.date)}
+                      {t.group && ` · ${t.group}`} · {t.tag}
+                      {!isMine(t) && ` · ${t.createdByName}`}
+                    </span>
+                  </span>
+                  <span className="row-time">{formatDuration(trainingPlan(t).total)}</span>
+                </button>
+              </li>
+            )
+          })}
+        </ul>
+      )}
     </div>
   )
 }

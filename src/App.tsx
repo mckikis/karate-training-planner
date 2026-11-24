@@ -8,6 +8,7 @@ import TrainingFormPage from './pages/TrainingFormPage'
 import CategoriesPage from './pages/CategoriesPage'
 import SettingsPage from './pages/SettingsPage'
 import LoginPage from './pages/LoginPage'
+import TimerPage from './pages/TimerPage'
 import { useError, useSession } from './cloud'
 import { ConfirmHost } from './confirm'
 
@@ -26,10 +27,19 @@ function TabLayout() {
           </svg>
           Cviky
         </NavLink>
-        <NavLink to="/trainings" className="tab">
+        <NavLink to="/timer" className="tab">
+          {/* stopwatch */}
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true">
             <circle cx="12" cy="13" r="8" />
-            <path d="M12 9v4l2.5 2.5M9 2h6" />
+            <path d="M12 9v4l2.5 2.5M9 2h6M19 6l1.5-1.5" />
+          </svg>
+          Časomiera
+        </NavLink>
+        <NavLink to="/trainings" className="tab">
+          {/* calendar with a tick: planned trainings */}
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <rect x="3.5" y="5" width="17" height="15.5" rx="2.5" />
+            <path d="M3.5 10h17M8 3v4M16 3v4M9 15l2 2 4-4" />
           </svg>
           Tréningy
         </NavLink>
@@ -69,6 +79,7 @@ export default function App() {
           <Route path="/trainings/:id" element={<TrainingDetailPage />} />
           <Route path="/categories" element={<CategoriesPage />} />
           <Route path="/settings" element={<SettingsPage />} />
+          <Route path="/timer" element={<TimerPage />} />
         </Route>
         <Route path="/exercises/new" element={<ExerciseFormPage />} />
         <Route path="/exercises/:id/edit" element={<ExerciseFormPage />} />

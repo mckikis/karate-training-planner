@@ -1,6 +1,6 @@
 # Prompt used to create the design document
 
-> Podľa šablóny od profesora. Tento prompt (spolu s `SPEC.md`, `project.md` a prístupom k repozitáru) sa dá poslať LLM; výsledkom je `karate-training-planner-design.md`.
+> Podľa šablóny od profesora. Tento prompt (spolu s `SPEC.md`, `PROJECT.md` a prístupom k repozitáru) sa dá poslať LLM; výsledkom je `karate-training-planner-design.md`.
 
 ---
 

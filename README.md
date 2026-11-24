@@ -1,22 +1,39 @@
 # Karate Training Planner
 
-Plan karate trainings and see how long they take. Installable web app for iPhone/Android.
+Webová aplikácia pre trénerov karate klubu **Katsudo Sabinov**. Tréneri si v nej vedú databázu cvikov s fotkami, GIFmi alebo videami a skladajú z nich tréningy. Appka vypočíta dĺžku tréningu a časový rozvrh, počas tréningu slúži ako časomiera.
 
-Project description: [project.md](project.md)
+**Aplikácia:** <https://mckikis.github.io/karate-training-planner/>
 
-## Run locally
+## Čo v nej tréneri robia
 
-```bash
-npm install
+- **Cviky** – základná sada karate cvikov v kategóriách, vlastné cviky s fotkou, GIFom alebo videom z telefónu, hľadanie, obľúbené, skrývanie a vlastné poradie.
+- **Tréningy** – tréning s časťami Rozcvička, Hlavná časť a Záver. Pri každom cviku sa nastavia série, opakovania alebo čas a pauzy. Appka ukáže dĺžku tréningu aj rozvrh (napr. 17:17 – 17:20). Tréning sa dá skopírovať, filtrovať podľa typu a skupiny (Prípravka, Starší).
+- **Časomiera** – odpočet na celú obrazovku: vlastné série a pauzy alebo celý tréning cvik po cviku, s pípaním, výmenou vo dvojiciach a atoshi baraku.
+- **Spoločné dáta** – tréner sa prihlási menom a prihlasovacím kľúčom od správcu. Cviky a tréningy sa zdieľajú medzi trénermi (súkromné vidí len autor), appka funguje aj bez internetu.
+
+## Inštalácia do telefónu
+
+- **iPhone:** otvor adresu v Safari → Zdieľať → **Pridať na plochu**.
+- **Android:** otvor adresu v Chrome → ponuka ⋮ → **Inštalovať aplikáciu**.
+
+## Dokumenty
+
+| Súbor | Obsah |
+| --- | --- |
+| [PROJECT.md](PROJECT.md) | problém, používatelia, MVP, epiky a user stories |
+| [SPEC.md](SPEC.md) | funkcie, akceptačné kritériá, obmedzenia, mimo rozsahu |
+| [DESIGN.md](DESIGN.md) | architektúra, dátový model, rozhodnutia, riziká |
+| [karate-training-planner-design.md](karate-training-planner-design.md) | implementačná špecifikácia verzie 1 pre AI agentov (`/implement`) |
+| [FIREBASE.md](FIREBASE.md) | nastavenie Firebase a prihlasovacích kľúčov |
+| [CLAUDE.md](CLAUDE.md) | pravidlá projektu pre AI agentov |
+
+## Vývoj
+
+```
+npm ci
 npm run dev
 ```
 
-Open the address shown in the terminal. To try it on an iPhone on the same Wi-Fi, open the **Network** address in Safari.
+Kontrola pred odoslaním: `npm run typecheck`, `npm run lint`, `npm run build`. Každý push do vetvy `main` aplikáciu zostaví a zverejní na GitHub Pages.
 
-## Publish
-
-Every push to `main` builds the app and publishes it to GitHub Pages:
-https://mckikis.github.io/karate-training-planner/
-
-On iPhone: open the address in Safari → Share → **Add to Home Screen**.
-
+© Kristína Šimčíková 2026

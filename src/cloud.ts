@@ -11,6 +11,10 @@
  *   categories, exercises, trainings            shared by all coaches, with createdBy / createdByName;
  *                                               private = true → only the author sees it
  *   trainingTypes                               training types added by coaches
+ *   appSettings/global                          club settings of the admin (deleted starter items)
+ *
+ * The admin (key in adminKeys) changes and deletes everything for everybody: exercises, categories,
+ * the order and "Len na čas". Other coaches keep their order and "Len na čas" in prefs/{uid}.
  *   media/{id} + media/{id}/chunks/{n}          uploaded pictures and videos, split into 900 kB pieces
  *
  * Private items: the rules let a coach read only public documents (private == false) and their own,
@@ -28,6 +32,7 @@ import {
   signOut,
 } from 'firebase/auth'
 import {
+  arrayUnion,
   Bytes,
   clearIndexedDbPersistence,
   collection,
@@ -104,7 +109,7 @@ export interface Data {
   trainingTypes: TrainingType[]
 }
 
-const EMPTY_PREFS: Prefs = { favorites: {}, hidden: {}, order: {} }
+const EMPTY_PREFS: Prefs = { favorites: {}, hidden: {}, order: {}, timeOnly: {} }
 
 type Shared = 'categories' | 'exercises' | 'trainings'
 const SHARED: Shared[] = ['categories', 'exercises', 'trainings']
@@ -133,6 +138,8 @@ const raw = {
   trainings: [] as Training[],
   trainingTypes: [] as TrainingType[],
   prefs: EMPTY_PREFS,
+  removedStarter: new Set<string>(), // starter items the admin deleted – not added again
+  settingsFromServer: false,
 }
 
 function joined<T>(part: Part): T[] {
@@ -164,16 +171,26 @@ function subscribe(listener: () => void) {
 /** Shared data with the favourites, hidden items and order of the logged-in coach. */
 function computeData() {
   const p = raw.prefs
+  const categories = raw.categories.map((c) => ({
+    ...c,
+    order: p.order[c.id] ?? c.order,
+    timeOnly: p.timeOnly[c.id] ?? c.timeOnly,
+  }))
+  const timeOnlyCategories = new Set(categories.filter((c) => c.timeOnly).map((c) => c.id))
   data = {
     ready: SHARED.every(isLoaded),
     trainingTypes: raw.trainingTypes,
-    categories: raw.categories.map((c) => ({ ...c, order: p.order[c.id] ?? c.order })),
-    exercises: raw.exercises.map((e) => ({
-      ...e,
-      order: p.order[e.id] ?? e.order,
-      favorite: !!p.favorites[e.id],
-      hidden: !!p.hidden[e.id],
-    })),
+    categories,
+    exercises: raw.exercises.map((e) => {
+      const merged = {
+        ...e,
+        order: p.order[e.id] ?? e.order,
+        favorite: !!p.favorites[e.id],
+        hidden: !!p.hidden[e.id],
+      }
+      // In a "Len na čas" category the exercise is measured by time (10 × 1.5 s → 15 s).
+      return timeOnlyCategories.has(e.categoryId) ? toTimeMode(merged) : merged
+    }),
     trainings: raw.trainings.map((t) => ({
       ...t,
       tag: normalizeTag(t.tag ?? ''),
@@ -203,7 +220,7 @@ export function useError(): [string, () => void] {
   return [message, () => showError('')]
 }
 
-function showError(message: string) {
+export function showError(message: string) {
   errorMessage = message
   emit()
 }
@@ -215,6 +232,11 @@ export function me(): Member {
 
 export function isMine(item: Author): boolean {
   return session.status === 'in' && item.createdBy === session.member.uid
+}
+
+/** The logged-in coach is the admin: their changes are for everybody. */
+export function isAdmin(): boolean {
+  return session.status === 'in' && session.member.admin
 }
 
 /**
@@ -397,6 +419,8 @@ function stopListening() {
   raw.trainings = []
   raw.trainingTypes = []
   raw.prefs = EMPTY_PREFS
+  raw.removedStarter = new Set()
+  raw.settingsFromServer = false
   computeData()
 }
 
@@ -458,6 +482,18 @@ function startListening(member: Member) {
   }
   unsubscribes.push(
     onSnapshot(
+      doc(fs, 'appSettings', 'global'),
+      { includeMetadataChanges: true },
+      (snap) => {
+        raw.removedStarter = new Set((snap.data()?.removedStarter as string[] | undefined) ?? [])
+        if (!snap.metadata.fromCache) raw.settingsFromServer = true
+        maybeSyncStarter(member)
+      },
+      onListenError('nastavenia klubu'),
+    ),
+  )
+  unsubscribes.push(
+    onSnapshot(
       collection(fs, 'trainingTypes'),
       (snap) => {
         raw.trainingTypes = snap.docs.map((d) => ({ ...d.data(), id: d.id }) as TrainingType)
@@ -493,7 +529,7 @@ function starterId(kind: 'c' | 'e', key: string) {
 
 function maybeSyncStarter(member: Member) {
   // Only with fresh data from the internet – the copy in the phone may be old.
-  if (syncStarted || !SHARED.every(isFromServer)) return
+  if (syncStarted || !SHARED.every(isFromServer) || !raw.settingsFromServer) return
   syncStarted = true
   syncStarterData()
     .then(() => markOwnAsPublic(member))
@@ -527,7 +563,7 @@ async function syncStarterData() {
 
   for (const [groupIndex, group] of STARTER.entries()) {
     const categoryId = starterId('c', group.category)
-    if (!categories.has(categoryId)) {
+    if (!categories.has(categoryId) && !raw.removedStarter.has(categoryId)) {
       await addOrMarkPublic('categories', categoryId, {
         name: group.category,
         order: groupIndex,
@@ -540,6 +576,7 @@ async function syncStarterData() {
       const key = `${group.category}/${name}`
       const id = starterId('e', key)
       const existing = exercises.get(id)
+      if (raw.removedStarter.has(id)) continue
       if (!existing) {
         await addOrMarkPublic('exercises', id, {
           name,
@@ -594,11 +631,17 @@ async function migrateLocalData(member: Member) {
     localDb.exercises.toArray(),
     localDb.trainings.toArray(),
   ])
-  const prefs: Prefs = { favorites: {}, hidden: {}, order: {} }
+  const prefs: Prefs = { favorites: {}, hidden: {}, order: {}, timeOnly: {} }
   const author = () => ({ createdBy: member.uid, createdByName: member.name, createdAt: Date.now() })
+
+  // Old starter exercises (isDefault, e.g. the English ones of the first version) are not moved –
+  // the current starter data is already in Firebase. Only the coach's own exercises are moved.
+  const ownExercises = exercises.filter((e) => !e.starterKey && !e.isDefault)
+  const neededCategories = new Set(ownExercises.map((e) => e.categoryId))
 
   const categoryIds = new Map<number, string>()
   for (const c of categories) {
+    if (!c.starterKey && !neededCategories.has(c.id)) continue
     let id = c.starterKey ? starterId('c', c.starterKey) : raw.categories.find((x) => x.name === c.name)?.id
     if (!id) {
       const ref = doc(collection(fs, 'categories'))
@@ -611,6 +654,7 @@ async function migrateLocalData(member: Member) {
 
   const exerciseIds = new Map<number, string>()
   for (const e of exercises) {
+    if (!e.starterKey && e.isDefault) continue
     let id: string
     if (e.starterKey) {
       id = starterId('e', e.starterKey)
@@ -688,9 +732,28 @@ export function setHidden(id: string, on: boolean) {
   background(setDoc(prefsRef(), change, { merge: true }))
 }
 
-/** Saves a new order after dragging: the first item gets 0, the second 1, … */
-export function saveOrder(ids: string[]) {
+/**
+ * Saves a new order after dragging: the first item gets 0, the second 1, …
+ * The admin's order is saved for everybody; other coaches keep their own order.
+ */
+export function saveOrder(collectionName: Shared, ids: string[]) {
+  if (isAdmin()) {
+    for (let i = 0; i < ids.length; i += 400) {
+      const batch = writeBatch(fs)
+      ids.slice(i, i + 400).forEach((id, j) => batch.update(doc(fs, collectionName, id), { order: i + j }))
+      background(batch.commit())
+    }
+    // The admin then sees the shared order, not an older own one.
+    background(setDoc(prefsRef(), { order: Object.fromEntries(ids.map((id) => [id, deleteField()])) }, { merge: true }))
+    return
+  }
   background(setDoc(prefsRef(), { order: Object.fromEntries(ids.map((id, index) => [id, index])) }, { merge: true }))
+}
+
+/** Remembers that the admin deleted starter items, so syncStarterData() does not add them again. */
+function rememberRemovedStarter(ids: string[]) {
+  if (ids.length === 0) return
+  background(setDoc(doc(fs, 'appSettings', 'global'), { removedStarter: arrayUnion(...ids) }, { merge: true }))
 }
 
 // ---------- Categories ----------
@@ -711,6 +774,39 @@ export function addCategory(name: string, isPrivate = false): string {
     }),
   )
   return ref.id
+}
+
+export function canDeleteCategory(category: Category): boolean {
+  return isAdmin() || (isMine(category) && !category.starterKey)
+}
+
+/**
+ * Deletes a category together with its exercises (from Firestore, with their pictures).
+ * A coach deletes only an own category with own exercises; the admin deletes any category.
+ */
+export function deleteCategory(category: Category): { deleted: number } {
+  if (!canDeleteCategory(category)) throw new Error('Vymazať môžeš len kategóriu, ktorú si vytvoril/a ty.')
+  const inCategory = raw.exercises.filter((e) => e.categoryId === category.id)
+  if (!isAdmin()) {
+    const foreign = inCategory.filter((e) => !isMine(e) || e.isDefault)
+    if (foreign.length > 0) {
+      throw new Error(`V kategórii sú cviky iných trénerov (${foreign.length}). Kategóriu nie je možné vymazať.`)
+    }
+  }
+  for (let i = 0; i < inCategory.length; i += 400) {
+    const batch = writeBatch(fs)
+    inCategory.slice(i, i + 400).forEach((e) => batch.delete(doc(fs, 'exercises', e.id)))
+    background(batch.commit())
+  }
+  background(deleteDoc(doc(fs, 'categories', category.id)))
+  inCategory.forEach((e) => {
+    if (e.mediaId) deleteMedia(e.mediaId).catch(() => {})
+  })
+  rememberRemovedStarter([
+    ...(category.starterKey ? [category.id] : []),
+    ...inCategory.filter((e) => e.isDefault).map((e) => e.id),
+  ])
+  return { deleted: inCategory.length }
 }
 
 /** Changes whether an own category is private. */
@@ -736,16 +832,17 @@ export function addTrainingType(name: string): string {
   return name
 }
 
-/** Only for own categories. Turning it on converts own exercises of the category to time. */
+/**
+ * "Len na čas": the admin changes it for everybody, every other coach only for themselves.
+ * The exercises of such a category are then shown and added to trainings by time.
+ */
 export function setCategoryTimeOnly(category: Category, timeOnly: boolean) {
-  const batch = writeBatch(fs)
-  batch.update(doc(fs, 'categories', category.id), { timeOnly })
-  if (timeOnly) {
-    raw.exercises
-      .filter((e) => e.categoryId === category.id && isMine(e) && !e.isDefault)
-      .forEach((e) => batch.update(doc(fs, 'exercises', e.id), { ...toTimeMode(timingOf(e)) }))
+  if (isAdmin()) {
+    background(updateDoc(doc(fs, 'categories', category.id), { timeOnly }))
+    background(setDoc(prefsRef(), { timeOnly: { [category.id]: deleteField() } }, { merge: true }))
+  } else {
+    background(setDoc(prefsRef(), { timeOnly: { [category.id]: timeOnly } }, { merge: true }))
   }
-  background(batch.commit())
 }
 
 // ---------- Exercises ----------
@@ -780,7 +877,8 @@ export async function saveExercise(id: string | undefined, input: ExerciseInput)
     fields.mediaId = deleteField()
     fields.mediaType = deleteField()
   }
-  if (input.media.kind !== 'keep' && old?.mediaId) background(deleteMedia(old.mediaId))
+  // The old picture is deleted when it is mine (a picture uploaded by another admin stays in Firebase).
+  if (input.media.kind !== 'keep' && old?.mediaId) deleteMedia(old.mediaId).catch(() => {})
 
   if (id) {
     background(updateDoc(doc(fs, 'exercises', id), fields))
@@ -801,9 +899,25 @@ export async function saveExercise(id: string | undefined, input: ExerciseInput)
   return ref.id
 }
 
+/** Deletes the exercise from Firestore (with its picture). Saved trainings keep their copy. */
 export function deleteExercise(exercise: Exercise) {
   background(deleteDoc(doc(fs, 'exercises', exercise.id)))
-  if (exercise.mediaId) background(deleteMedia(exercise.mediaId))
+  if (exercise.mediaId) deleteMedia(exercise.mediaId).catch(() => {})
+  if (exercise.isDefault) rememberRemovedStarter([exercise.id])
+}
+
+/** Who may change an exercise: the admin every exercise, other coaches their own ones. */
+export function canEditExercise(exercise: Exercise): boolean {
+  return isAdmin() || (isMine(exercise) && !exercise.isDefault)
+}
+
+export function canDeleteExercise(exercise: Exercise): boolean {
+  return canEditExercise(exercise)
+}
+
+/** Who may change, mark as done or delete a training: its author and the admin. */
+export function canEditTraining(training: Training): boolean {
+  return isAdmin() || isMine(training)
 }
 
 // ---------- Trainings ----------

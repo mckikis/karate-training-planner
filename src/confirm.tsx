@@ -8,6 +8,7 @@ import { useEffect, useRef, useSyncExternalStore } from 'react'
 interface Request {
   message: string
   confirmLabel: string
+  cancelLabel: string
   danger: boolean
   resolve: (ok: boolean) => void
 }
@@ -21,11 +22,15 @@ function emit() {
 
 export function confirmDialog(
   message: string,
-  { confirmLabel = 'Áno', danger = false }: { confirmLabel?: string; danger?: boolean } = {},
+  {
+    confirmLabel = 'Áno',
+    cancelLabel = 'Zrušiť',
+    danger = false,
+  }: { confirmLabel?: string; cancelLabel?: string; danger?: boolean } = {},
 ): Promise<boolean> {
   current?.resolve(false)
   return new Promise((resolve) => {
-    current = { message, confirmLabel, danger, resolve }
+    current = { message, confirmLabel, cancelLabel, danger, resolve }
     emit()
   })
 }
@@ -71,7 +76,7 @@ export function ConfirmHost() {
         <p className="dialog-text">{request.message}</p>
         <div className="dialog-buttons">
           <button type="button" className="button button-ghost" onClick={() => answer(false)}>
-            Zrušiť
+            {request.cancelLabel}
           </button>
           <button
             ref={confirmRef}

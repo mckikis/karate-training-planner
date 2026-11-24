@@ -61,9 +61,23 @@ export default function TrainingsPage() {
         right={
           <>
             {(canSort || sorting) && (
-              <button type="button" className="text-button" onClick={() => setSorting(!sorting)}>
-                {sorting ? 'Hotovo' : 'Usporiadať'}
-              </button>
+              sorting ? (
+                <button type="button" className="text-button sort-done" onClick={() => setSorting(false)}>
+                  Hotovo
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  className="icon-button sort-button"
+                  aria-label="Usporiadať tréningy"
+                  title="Usporiadať"
+                  onClick={() => setSorting(true)}
+                >
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <path d="M4 6h10M4 12h10M4 18h10M18 4v16M15.5 6.5 18 4l2.5 2.5M15.5 17.5 18 20l2.5-2.5" />
+                  </svg>
+                </button>
+              )
             )}
             <SettingsLink />
           </>
@@ -147,7 +161,7 @@ export default function TrainingsPage() {
           <SortableList
             items={active}
             getId={(t) => t.id}
-            onReorder={(list) => saveOrder(list.map((t) => t.id))}
+            onReorder={(list) => saveOrder('trainings', list.map((t) => t.id))}
             renderItem={(t, handle) => <TrainingRow training={t} handle={handle} />}
           />
         </>

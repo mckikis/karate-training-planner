@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router'
 import { byOrder, exerciseMedia, timingOf, toTimeMode, type Timing } from '../model'
-import { isMine, saveExercise, useData, type MediaChange } from '../cloud'
+import { canEditExercise, isMine, saveExercise, useData, type MediaChange } from '../cloud'
 import { Media, TopBar } from '../components'
 import { TimingFields } from './TimingFields'
 
@@ -68,14 +68,16 @@ export default function ExerciseFormPage() {
     if (!editingId && categoryId === undefined && categories.length) setCategoryId(categories[0].id)
   }, [categories, categoryId, editingId])
 
-  if (editingId && editing && (!isMine(editing) || editing.isDefault)) {
-    return <TopBar title="Tento cvik môže upraviť len jeho autor" />
+  if (editingId && editing && !canEditExercise(editing)) {
+    return <TopBar title="Tento cvik môže upraviť len jeho autor alebo správca" />
   }
 
   const category = categories.find((c) => c.id === categoryId)
   const timeOnly = !!category?.timeOnly
   // An exercise in a private category is private too – others do not see the category.
   const forcedPrivate = !!category?.private
+  // Only the author decides whether an own exercise is private; starter and other admins' exercises stay as they are.
+  const ownsPrivacy = !editing || (isMine(editing) && !editing.isDefault)
 
   async function pickFile(file?: File) {
     if (!file) return
@@ -106,7 +108,7 @@ export default function ExerciseFormPage() {
         description: description.trim(),
         timing: timeOnly ? toTimeMode(timing) : timing,
         media,
-        private: isPrivate || forcedPrivate,
+        private: ownsPrivacy ? isPrivate || forcedPrivate : !!editing?.private,
       })
       if (editingId) navigate(-1)
       else navigate(`/exercises/${id}`, { replace: true })
@@ -189,17 +191,19 @@ export default function ExerciseFormPage() {
           <TimingFields value={timeOnly ? toTimeMode(timing) : timing} onChange={setTiming} timeOnly={timeOnly} />
         </fieldset>
 
-        <label className="check-line">
-          <input
-            type="checkbox"
-            checked={isPrivate || forcedPrivate}
-            disabled={forcedPrivate}
-            onChange={(e) => setIsPrivate(e.target.checked)}
-          />
-          {forcedPrivate
-            ? 'Súkromný – kategória je súkromná, cvik uvidíš len ty'
-            : 'Súkromný – uvidíš ho len ty (inak ho uvidia aj ostatní tréneri)'}
-        </label>
+        {ownsPrivacy && (
+          <label className="check-line">
+            <input
+              type="checkbox"
+              checked={isPrivate || forcedPrivate}
+              disabled={forcedPrivate}
+              onChange={(e) => setIsPrivate(e.target.checked)}
+            />
+            {forcedPrivate
+              ? 'Súkromný – kategória je súkromná, cvik uvidíš len ty'
+              : 'Súkromný – uvidíš ho len ty (inak ho uvidia aj ostatní tréneri)'}
+          </label>
+        )}
 
         {error && <p className="error" role="alert">{error}</p>}
 

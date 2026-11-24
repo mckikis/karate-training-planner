@@ -32,11 +32,11 @@ export default function LoginPage({ error: startError }: { error?: string }) {
         }}
       >
         <label className="field">
-          <span className="field-label">Krstné meno</span>
+          <span className="field-label">Meno</span>
           <input
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder="napr. Kristína"
+            placeholder="napr. Tereza"
             autoComplete="given-name"
             maxLength={40}
             required

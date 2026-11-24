@@ -9,6 +9,9 @@ import type { Timing } from './model'
 //          time(série, sekúnd jednej série, oddych)
 //   - obrázok/GIF/video je nepovinný. Súbor daj do priečinka public/exercises/
 //     a sem napíš iba jeho názov, napr. 'kizami-zuki.gif' alebo 'mrazik.mp4'.
+//     Názov súboru bez diakritiky a medzier; videá krátke (ideálne do 5 MB, offline najviac 30 MB).
+//     Jednoduchšie: správca môže fotku alebo video pridať priamo v appke (Upraviť cvik).
+//   - Cvik alebo kategóriu, ktorú správca v appke vymazal, appka znova nepridá.
 //
 // timeOnly: true = cviky v kategórii sa zadávajú len na čas (nie na opakovania).
 // =====================================================================

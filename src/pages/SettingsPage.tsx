@@ -22,7 +22,7 @@ export default function SettingsPage() {
   }
 
   async function signOut() {
-    const ok = await confirmDialog('Odhlásiť sa? Kópia dát v tomto telefóne sa vymaže, vo Firebase ostane všetko.', {
+    const ok = await confirmDialog('Odhlásiť sa? Kópia dát v tomto telefóne sa vymaže.', {
       confirmLabel: 'Odhlásiť sa',
     })
     if (!ok) return
@@ -78,7 +78,7 @@ export default function SettingsPage() {
       <section className="card">
         <h2 className="card-title">Kategórie</h2>
         <Link to="/categories" className="button button-ghost button-wide">
-          Poradie kategórií a „Len na čas“
+          Poradie kategórií
         </Link>
       </section>
     </div>

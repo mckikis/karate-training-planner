@@ -14,7 +14,7 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['iconLogo.png', 'apple-touch-icon.png', 'katsudo-logo.png'],
+      includeAssets: ['iconLogo.png', 'katsudo-logo.png'],
       workbox: {
         // Precache starter pictures and videos from public/exercises/ so they work offline (K16).
         globPatterns: ['**/*.{js,css,html,png,jpg,jpeg,gif,webp,svg,mp4,mov,webm}'],

@@ -1,6 +1,6 @@
 import { Link, useNavigate, useParams } from 'react-router'
 import { exerciseMedia } from '../model'
-import { deleteExercise, isMine, setFavorite, setHidden, useData } from '../cloud'
+import { canDeleteExercise, canEditExercise, deleteExercise, setFavorite, setHidden, useData } from '../cloud'
 import { formatDuration, timingSummary, workPerSet } from '../time'
 import { AuthorNote, Media, StarButton, TopBar } from '../components'
 import { confirmDialog } from '../confirm'
@@ -14,8 +14,10 @@ export default function ExerciseDetailPage() {
 
   if (!exercise) return data.ready ? <TopBar title="Cvik sa nenašiel" /> : null
 
-  // Only the author can change or delete an exercise; starter exercises nobody.
-  const canEdit = isMine(exercise) && !exercise.isDefault
+  // The author changes and deletes own exercises; the admin also changes starter exercises
+  // (nobody deletes them).
+  const canEdit = canEditExercise(exercise)
+  const canDelete = canDeleteExercise(exercise)
 
   // Hiding is per coach – the exercise stays for the others and can be shown again from "Skryté cviky".
   function toggleHidden() {
@@ -74,10 +76,15 @@ export default function ExerciseDetailPage() {
         <p className="hint">Je možné zmeniť pri každom tréningu.</p>
       </section>
 
+      {canEdit && (
+        <Link to={`/exercises/${exercise.id}/edit`} className="button button-primary button-wide">
+          Upraviť cvik
+        </Link>
+      )}
       <button type="button" className="button button-ghost button-wide" onClick={toggleHidden}>
         {exercise.hidden ? 'Zobraziť cvik znova' : 'Skryť cvik'}
       </button>
-      {canEdit && (
+      {canDelete && (
         <button type="button" className="button button-danger-ghost" onClick={remove}>
           Vymazať cvik
         </button>

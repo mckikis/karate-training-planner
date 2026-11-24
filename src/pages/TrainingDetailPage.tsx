@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router'
 import { exerciseMedia, sectionLabel, tagClass, type Exercise, type Section, type TrainingItem } from '../model'
-import { deleteTraining, isMine, setHidden, updateTraining, useData } from '../cloud'
+import { canEditTraining, deleteTraining, setHidden, updateTraining, useData } from '../cloud'
 import { clockAt, formatDate, formatDuration, timingSummary, trainingPlan } from '../time'
 import { AuthorNote, Media, Thumb, TopBar } from '../components'
 import { updateSettings, useSettings } from '../settings'
@@ -20,7 +20,7 @@ export default function TrainingDetailPage() {
   if (!training) return data.ready ? <TopBar title="Tréning sa nenašiel" /> : null
 
   // Only the author can change, mark or delete the training. Anybody can hide it for themselves.
-  const mine = isMine(training)
+  const mine = canEditTraining(training)
 
   async function remove() {
     const ok = await confirmDialog(`Natrvalo vymazať „${training!.name}“? Zmizne aj ostatným trénerom.`, {
@@ -86,6 +86,12 @@ export default function TrainingDetailPage() {
       <AuthorNote name={training.createdByName} />
       {training.coach && <p className="body-text">Tréner: <strong>{training.coach}</strong></p>}
       {training.description && <p className="body-text">{training.description}</p>}
+
+      {entries.length > 0 && (
+        <Link to={`/timer?training=${id}`} className="button button-primary button-wide">
+          ▶ Spustiť časomieru tréningu
+        </Link>
+      )}
 
       {entries.length > 0 && (
         <div className="plan-tools">

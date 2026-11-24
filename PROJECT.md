@@ -1,3 +1,5 @@
+# PROJECT – Karate Training Planner
+
 ## Problém
 - Trénerom karate chýba digitálny nástroj na zapisovanie karate cvikov s vizuálnymi referenciami (obrázkami alebo GIFmi) a na ich jednoduché zostavenie do štruktúrovaných tréningových plánov.
 
@@ -18,20 +20,26 @@ Pri každom cviku nastavím počet sérií, čas jednej série (alebo počet opa
 Aplikácia ukáže čas každého cviku aj celkovú dĺžku tréningu: čas cviku = série × čas série + pauzy medzi sériami + pauza pred ďalším cvikom
 - Uložené tréningy – zoznam tréningov, ktoré môžem otvoriť, upraviť alebo zmazať.
 
-## Non-goals
-- Časomiera na celú obrazovku počas tréningu (aktuálny cvik, séria, ďalší cvik, pauza). Dôvod: Prvá verzia rieši plánovanie. Časomiera môže pribudnúť v ďalšej verzii.
-- Účty, synchronizácia, zdieľanie tréningov s inými trénermi. Dôvod: Aplikáciu používam sama na jednom telefóne, nie je čo synchronizovať. Pribudol by server a prihlasovanie.
-- Zverejnenie v App Store. Dôvod:	Aplikácia je zatiaľ len pre mňa.
-- Zmena poradia cvikov ťahaním. Dôvod: Cviky ostanú v poradí, v akom ich zaškrtnem. Na prvú verziu to stačí.
-- História tréningov, štatistiky, dochádzka. Dovod:	Nepomáhajú s hlavným problémom.
-- Záloha a prenos dát do iného telefónu. Dôvod:	Dáta sú zatiaľ len v jednom telefóne. Export dát a zdieľanie tréningov s ostatnými trénermi príde v ďalšej verzii.
+## Non-goals (MVP)
+Tieto veci nie sú súčasťou MVP. Prídu v ďalšej verzii (verzia 2), časť z nich je v aplikácii už doplnená – pozri kapitolu *Verzia 2* nižšie.
+
+| Nie v MVP | Dôvod | Ďalšia verzia |
+| --- | --- | --- |
+| Časomiera na celú obrazovku počas tréningu (aktuálny cvik, séria, ďalší cvik, pauza) | Prvá verzia rieši plánovanie. | Verzia 2 – záložka **Časomiera** (Epic 6). |
+| Účty, synchronizácia, zdieľanie tréningov s inými trénermi | Pribudol by server a prihlasovanie. | Verzia 2 – prihlásenie menom a kľúčom, spoločné dáta vo Firebase (Epic 7). |
+| Záloha a prenos dát do iného telefónu | Dáta sú v MVP len v jednom telefóne. | Verzia 2 – dáta sú vo Firebase, tréner sa prihlási na hocijakom telefóne (Epic 7). |
+| Zmena poradia cvikov ťahaním | Na prvú verziu stačí poradie zaškrtnutia. | Doplnené – poradie cvikov, kategórií a tréningov sa mení ťahaním. |
+| Zverejnenie v App Store | Aplikácia je pre tréningy nášho klubu, inštalácia cez Safari stačí. | Neplánuje sa. |
+| História tréningov, štatistiky, dochádzka | Nepomáhajú s hlavným problémom. | Neplánuje sa. |
 
 ## Technológie
 - Rozhranie: React + TypeScript (obrazovky aplikácie)
-- Zostavenie projektu: Vite	(spustenie počas vývoja a zostavenie appky)
-- Lokálna databáza:	IndexedDB cez knižnicu Dexie.js	(cviky, tréningy, fotky a videá uložené v telefóne)
-- Fotky a videá:	výber súboru z telefónu (médiá k cvikom)
-- Nástroje:	VS Code, Node.js, Git + GitHub	(písanie kódu a verzie projektu)
+- Zostavenie projektu: Vite (spustenie počas vývoja a zostavenie appky), PWA – inštalácia na plochu telefónu
+- Databáza v MVP: IndexedDB cez knižnicu Dexie.js (cviky, tréningy, fotky a videá uložené v telefóne)
+- Databáza vo verzii 2: Firebase (Authentication + Firestore) s offline kópiou v telefóne, zadarmo (plán Spark)
+- Fotky a videá: výber súboru z telefónu (médiá k cvikom)
+- Hosting: GitHub Pages cez GitHub Actions
+- Nástroje: VS Code, Node.js, Git + GitHub, Claude Code (písanie kódu a verzie projektu)
 
 
 ## Initiative
@@ -45,7 +53,7 @@ Aplikácia ukáže čas každého cviku aj celkovú dĺžku tréningu: čas cvik
 - **User story:** Ako tréner chcem pridať vlastný cvik s fotkou, GIFom alebo krátkym videom, aby som si pamätala, ako sa cvik robí.
   - Tasky: formulár na nový cvik, výber fotky/videa z telefónu, uloženie média do databázy, prehrávanie GIFu/videa v slučke
 - **User story:** Ako tréner chcem pridať vlastnú kategóriu cvikov, aby som si cviky mohla triediť podľa seba.
-  - Tasky: tlačidlo „+ Category“, uloženie kategórie, filter cvikov podľa kategórie
+  - Tasky: tlačidlo „+ Kategória“, uloženie kategórie, filter cvikov podľa kategórie
 - **User story:** Ako tréner chcem cvik vyhľadať podľa názvu, aby som ho rýchlo našla aj vo veľkej databáze.
   - Tasky: vyhľadávacie pole, filtrovanie zoznamu
 
@@ -59,7 +67,7 @@ Aplikácia ukáže čas každého cviku aj celkovú dĺžku tréningu: čas cvik
 - **User story:** Ako tréner chcem pri každom cviku nastaviť počet sérií, čas alebo opakovania a pauzy, aby aplikácia vypočítala dĺžku celého tréningu.
   - Tasky: polia pre série, opakovania, čas a pauzy, funkcia na výpočet času cviku a celkového času, zobrazenie súčtu počas zostavovania
 - **User story:** Ako tréner chcem zadať, o koľkej tréning začína, aby som pri každom cviku videla, od kedy do kedy sa má cvičiť (napr. 17:17 – 17:20), a tréning som stihla načas.
-  - Tasky: pole „Starts at“, výpočet časov začiatku a konca cvikov, zobrazenie prestávok medzi cvikmi
+  - Tasky: pole „Začiatok“, výpočet časov začiatku a konca cvikov, zobrazenie prestávok medzi cvikmi
 
 ### Epic 4: Správa uložených tréningov
 - **User story:** Ako tréner chcem vidieť zoznam svojich tréningov podľa dátumu, aby som rýchlo našla tréning na najbližšiu hodinu.
@@ -73,5 +81,25 @@ Aplikácia ukáže čas každého cviku aj celkovú dĺžku tréningu: čas cvik
 - **User story:** Ako tréner chcem, aby moje cviky, fotky a tréningy ostali uložené v telefóne aj po zatvorení aplikácie, aby som o ne neprišla.
   - Tasky: lokálna databáza IndexedDB (Dexie.js), požiadavka na trvalé uloženie dát
 
-### Ďalšia verzia (mimo MVP)
-- **Epic 6: Časomiera počas tréningu.** Ako tréner chcem mať počas tréningu na celej obrazovke odpočet s aktuálnym cvikom, sériou a ďalším cvikom, aby som nemusela sledovať hodinky.
+## Verzia 2 (ďalšia verzia, mimo MVP)
+Funkcie, ktoré v MVP neboli (pozri *Non-goals*). V aplikácii sú už doplnené.
+
+### Epic 6: Časomiera počas tréningu
+- **User story:** Ako tréner chcem mať počas tréningu na celej obrazovke odpočet s aktuálnym cvikom, sériou a ďalším cvikom, aby som nemusela sledovať hodinky.
+  - Tasky: záložka Časomiera, vlastný odpočet (série, čas, pauza, odpočet pred začiatkom) alebo časomiera podľa tréningu, pípanie 3-2-1 a dlhé pípnutie na začiatku a konci, pauza, posun o 10 s, ďalšia/predchádzajúca časť, veľký čas na výšku aj na šírku
+- **User story:** Ako tréner chcem, aby si dvojice počas série vymenili úlohy a aby appka pípla pred koncom kola (atoshi baraku), aby deti vedeli, kedy zabrať.
+  - Tasky: výmena počas série (výmena po N s, čas na výmenu), atoshi baraku 15 s pred koncom, nastavenie pri každom cviku tréningu
+
+### Epic 7: Spoločné dáta trénerov
+- **User story:** Ako tréner sa chcem prihlásiť menom a prihlasovacím kľúčom od správcu, aby som mala svoje cviky a tréningy na každom telefóne.
+  - Tasky: Firebase Authentication, kľúče v databáze, zapamätanie prihlásenia, offline kópia dát, presun dát zo staršej verzie do Firebase
+- **User story:** Ako tréner chcem vidieť cviky a tréningy ostatných trénerov, ale meniť a mazať len svoje, aby si tréneri navzájom nič nepokazili.
+  - Tasky: autor pri cviku a tréningu, prepínač „Zobraziť aj … iných trénerov“, súkromné cviky, kategórie a tréningy (🔒), pravidlá prístupu `firestore.rules`
+- **User story:** Ako správca chcem upravovať a mazať všetky cviky vrátane predvolených a nastaviť poradie pre všetkých, aby mali tréneri rovnaký základ.
+  - Tasky: správcovský kľúč, globálne poradie a „Len na čas“, mazanie predvolených cvikov
+
+### Epic 8: Lepšie tréningy
+- **User story:** Ako tréner chcem mať tréning rozdelený na Rozcvičku, Hlavnú časť a Záver a nový tréning vytvoriť zo šablóny alebo kópiou staršieho, aby som ho pripravila rýchlejšie.
+  - Tasky: časti tréningu s farbami, šablóna `src/trainingTemplate.ts`, kopírovanie tréningu
+- **User story:** Ako tréner chcem tréningy filtrovať podľa typu, skupiny (Prípravka, Starší) a názvu, aby som rýchlo našla správny tréning.
+  - Tasky: nové typy tréningov s farbami, vlastné typy, skupina „Pre koho“ s predvoleným časom začiatku (Prípravka 16:30, Starší 17:00), filtre a zoradenie podľa dátumu

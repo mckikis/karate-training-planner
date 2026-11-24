@@ -31,9 +31,9 @@
   --tint-text: #1b2021; /* text on a coloured training */
 
   /* Parts of a training */
-  --part-warmup: #f4a259;
-  --part-main: #6320ee;
-  --part-cooldown: #4fb3a9;
+  --part-warmup: #e9c2a1;
+  --part-main: #9670e1;
+  --part-cooldown: #76cec5;
 
   color-scheme: dark;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -1498,4 +1498,220 @@ button.plan-row:focus-visible {
 
 .part .button-outline {
   margin-top: 0;
+}
+
+/* =========================================================
+   Timer (Časomiera)
+   ========================================================= */
+
+:root {
+  --timer-work: #1f5fd6; /* the time runs */
+  --timer-rest: #5b6270; /* rest between sets and countdown before the start */
+  --timer-atoshi: #2e4fb8; /* "Atoshi baraku": the last 15 s of a set */
+  --timer-switch: #c46a1b; /* partners swap roles */
+  --timer-paused: #33383f; /* paused */
+  --timer-done: #1f7a4d;
+}
+
+.timer-start {
+  min-height: 60px;
+  font-size: 18px;
+}
+
+.timer-hint {
+  margin-top: 12px;
+  text-align: center;
+}
+
+/* Full screen, also over the bottom navigation: top row, big time, buttons, strip */
+.timer-run {
+  position: fixed;
+  inset: 0;
+  z-index: 45;
+  display: flex;
+  flex-direction: column;
+  background: var(--timer-rest);
+  color: #ffffff;
+  transition: background 0.3s;
+  user-select: none;
+}
+
+.timer-work { background: var(--timer-work); }
+.timer-atoshi { background: var(--timer-atoshi); }
+.timer-switch { background: var(--timer-switch); }
+.timer-paused { background: var(--timer-paused); }
+.timer-done { background: var(--timer-done); }
+
+.timer-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  min-height: 44px;
+  padding: calc(env(safe-area-inset-top) + 10px) calc(env(safe-area-inset-right) + 16px) 0
+    calc(env(safe-area-inset-left) + 16px);
+}
+
+.timer-set {
+  font-size: clamp(16px, 2.6vmax, 26px);
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.timer-center {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.timer-label {
+  font-size: clamp(18px, 4vmin, 34px);
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+/* The time as big as the screen allows – upright and on its side */
+.timer-time {
+  font-size: min(34vw, 50vh);
+  font-weight: 800;
+  line-height: 0.95;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.03em;
+}
+
+/* "Ukončiť" (✕) and "Upraviť" (pencil) in the top left corner */
+.timer-icons {
+  display: flex;
+  gap: 8px;
+}
+
+.timer-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border: 0;
+  border-radius: 22px;
+  background: rgba(0, 0, 0, 0.22);
+  color: #ffffff;
+  cursor: pointer;
+}
+
+/* Buttons right above the strip – small, but still easy to tap (44 px) */
+.timer-controls {
+  display: flex;
+  flex-wrap: nowrap;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px 12px;
+}
+
+.timer-button {
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0 8px;
+  border: 1.5px solid rgba(255, 255, 255, 0.55);
+  border-radius: 22px;
+  background: rgba(255, 255, 255, 0.12);
+  color: #ffffff;
+  font-size: 16px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.timer-main {
+  min-width: 56px;
+  min-height: 48px;
+  background: #ffffff;
+  color: #1b2021;
+  font-size: 20px;
+}
+
+.timer-text-button {
+  min-height: 48px;
+  padding: 0 18px;
+  border: 0;
+  border-radius: 24px;
+  background: rgba(0, 0, 0, 0.22);
+  color: #ffffff;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+/* Strip at the bottom: current exercise left, next exercise right (a darker shade of the background) */
+.timer-strip {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 16px;
+  padding: 12px calc(env(safe-area-inset-right) + 16px) calc(env(safe-area-inset-bottom) + 12px)
+    calc(env(safe-area-inset-left) + 16px);
+  background: rgba(0, 0, 0, 0.28);
+  font-size: clamp(15px, 2.4vmax, 22px);
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.timer-now,
+.timer-next {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.timer-next {
+  text-align: right;
+  opacity: 0.85;
+}
+
+/* Without the strip (own timer) the buttons need room from the bottom edge */
+.timer-run > .timer-controls:last-child {
+  padding-bottom: calc(env(safe-area-inset-bottom) + 20px);
+}
+
+.timer-edit {
+  color: var(--text);
+}
+
+.timer-edit .grid-2 {
+  margin-bottom: 12px;
+}
+
+/* Landscape phone: smaller buttons, so the time stays big */
+@media (orientation: landscape) and (max-height: 500px) {
+  .timer-button {
+    min-height: 44px;
+  }
+  .timer-text-button {
+    min-height: 42px;
+  }
+  .timer-controls {
+    padding: 4px 16px 6px;
+  }
+  .timer-strip {
+    padding-top: 6px;
+    padding-bottom: calc(env(safe-area-inset-bottom) + 6px);
+  }
+  .timer-time {
+    font-size: min(28vw, 46vh);
+  }
+}
+
+/* "Kopírovať tréning": a training row as a button */
+.copy-row {
+  width: 100%;
+  border: 0;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+
+.copy-row.tinted {
+  color: var(--tint-text);
 }
