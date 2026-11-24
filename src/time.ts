@@ -1,4 +1,4 @@
-import type { Section, Timing, TrainingItem } from './model'
+import { itemTitle, type Section, type Timing, type TrainingItem } from './model'
 
 /** Seconds of work in one set. */
 export function workPerSet(t: Timing): number {
@@ -176,6 +176,11 @@ export function exerciseCount(n: number): string {
   return `${n} ${n === 1 ? 'cvik' : n >= 2 && n <= 4 ? 'cviky' : 'cvikov'}`
 }
 
+/** "1 variant", "3 varianty", "5 variantov" */
+export function variantCount(n: number): string {
+  return `${n} ${n === 1 ? 'variant' : n >= 2 && n <= 4 ? 'varianty' : 'variantov'}`
+}
+
 // ---------- Timer (Časomiera) ----------
 
 /** One step of the timer: work (blue), rest or the countdown before the start (grey). */
@@ -251,10 +256,10 @@ export function trainingTimerPhases(
     const sets = Math.max(1, item.sets)
     for (let set = 1; set <= sets; set++) {
       setParts(item).forEach((part) =>
-        phases.push({ ...part, exercise: item.name, set, sets, atoshi: part.kind === 'work' && !!item.atoshi }),
+        phases.push({ ...part, exercise: itemTitle(item), set, sets, atoshi: part.kind === 'work' && !!item.atoshi }),
       )
       if (set < sets && item.restBetweenSets > 0) {
-        phases.push({ kind: 'rest', seconds: Math.round(item.restBetweenSets), exercise: item.name, set, sets })
+        phases.push({ kind: 'rest', seconds: Math.round(item.restBetweenSets), exercise: itemTitle(item), set, sets })
       }
     }
     if (breakAfter > 0) phases.push({ kind: 'rest', seconds: Math.round(breakAfter), exercise: 'Prestávka', set: sets, sets })

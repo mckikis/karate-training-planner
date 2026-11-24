@@ -59,7 +59,7 @@ erDiagram
 | `members/{uid}` | `name`, `key`, `admin` | len daný tréner |
 | `prefs/{uid}` | `favorites`, `hidden`, `order`, `timeOnly`, `timing` – osobné nastavenia | len daný tréner |
 | `categories` | `name`, `order`, `timeOnly`, `private`, `starterKey`, autor | všetci tréneri; súkromné len autor |
-| `exercises` | `name`, `description`, `categoryId`, `order`, Timing, `mediaId` / `mediaFile`, `isDefault`, `byAdmin`, `private`, autor | všetci; mení autor alebo správca |
+| `exercises` | `name`, `description`, `categoryId`, `order`, Timing, `mediaId` / `mediaFile`, `isDefault`, `byAdmin`, `private`, `parentId` (variant iného cviku), autor | všetci; mení autor alebo správca |
 | `trainings` | `name`, `description`, `date`, `startTime`, `tag`, `group`, `items`, `warmupSeconds`, `cooldownSeconds`, `done`, `doneAt`, `coach`, `private`, autor | všetci; mení autor alebo správca |
 | `trainingTypes` | vlastné typy tréningov | všetci |
 | `appSettings/global` | `starterSeeded` – predvolené dáta už sú vo Firebase; `removedStarter` – predvolené položky, ktoré správca vymazal | číta každý, zapisuje správca |
@@ -69,7 +69,9 @@ Autor = `createdBy` (uid) a `createdByName` (meno). Predvolené položky majú `
 
 **Timing** (cvik aj položka tréningu): `mode` (`reps` / `time`), `sets`, `reps`, `secondsPerRep`, `workSeconds`, `restBetweenSets`, voliteľne `switchEvery`, `switchSeconds` (výmena počas série) a `atoshi`.
 
-**TrainingItem** = Timing + `exerciseId`, `name` (kópia názvu), `restAfter`, `timeOnly`, `section` (`warmup` / `main` / `cooldown`).
+**TrainingItem** = Timing + `exerciseId`, `name` (kópia názvu), `restAfter`, `timeOnly`, `section` (`warmup` / `main` / `cooldown`), `variants` (vybrané varianty – `exerciseId` a kópia názvu).
+
+**Varianty cviku:** variant (napr. „na jednej nohe“ pri „Frekvenčný rebrík“) je obyčajný dokument v `exercises` s `parentId`. Má názov, popis a obrázok, vlastné časy nemá – čas sa zadáva pre celý cvik v tréningu. Varianty sú len jedna úroveň. Variant má všetky funkcie cviku (autor, súkromný, obľúbený, skrytý) a rovnaké pravidlá v `firestore.rules`. Variant bez existujúceho cviku sa nezobrazuje; pri vymazaní cviku sa vymažú aj jeho varianty, ktoré tréner smie vymazať.
 
 **Prečo kópia údajov v tréningu:** časy sa dajú v tréningu zmeniť bez zmeny cviku. Tréning ostane čitateľný, aj keď sa cvik premenuje alebo vymaže.
 

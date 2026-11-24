@@ -56,13 +56,20 @@ export function Media({
       <video
         ref={videoRef}
         className={className}
-        // #t=0.1 makes iPhone show the first frame of a stopped video instead of an empty box
-        src={play ? src : `${src}#t=0.1`}
-        autoPlay={play}
-        preload={play ? 'auto' : 'metadata'}
+        src={src}
+        // Without autoplay ("Automaticky prehrávať videá" off) the video starts for a moment and
+        // stops at once – iPhone draws its first frame only then, so there is a preview, not an empty box.
+        autoPlay
+        preload="auto"
         muted
         loop
         playsInline
+        onPlaying={(e) => {
+          if (!play) e.currentTarget.pause()
+        }}
+        onLoadedData={(e) => {
+          if (!play && e.currentTarget.currentTime === 0) e.currentTarget.currentTime = 0.1
+        }}
       />
     )
   }
@@ -388,4 +395,74 @@ export function EmptyState({ title, text, action }: { title: string; text: strin
 /** "Autor: Kristína" – who created an exercise or training. */
 export function AuthorNote({ name }: { name: string }) {
   return <span className="author">Autor: {name}</span>
+}
+
+/** Icons of the buttons at the bottom of a detail (Upraviť, Skryť, Vymazať). */
+export function ActionIcon({ name }: { name: 'edit' | 'hide' | 'show' | 'delete' | 'timer' }) {
+  const paths = {
+    edit: 'M4 20h4L19 9l-4-4L4 16v4zM13.5 6.5l4 4',
+    hide: 'M3 3l18 18M10.6 5.1A10 10 0 0 1 12 5c5 0 9 4.5 10 7a13 13 0 0 1-3.2 4.3M6.6 6.6C4.4 8 2.8 10 2 12c1 2.5 5 7 10 7a9.7 9.7 0 0 0 4.4-1M9.9 9.9a3 3 0 0 0 4.2 4.2',
+    show: 'M2 12c1-2.5 5-7 10-7s9 4.5 10 7c-1 2.5-5 7-10 7S3 14.5 2 12zM12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z',
+    delete: 'M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3',
+    timer: 'M10 2h4M12 14l3-3M12 22a8 8 0 1 0 0-16 8 8 0 0 0 0 16z',
+  }
+  return (
+    <svg className="action-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d={paths[name]} />
+    </svg>
+  )
+}
+
+/**
+ * Buttons at the bottom of an exercise or training detail: Upraviť (wide), then Skryť and
+ * Vymazať next to each other – all with white icons.
+ */
+export function DetailActions({
+  editTo,
+  hidden,
+  onToggleHidden,
+  onDelete,
+}: {
+  editTo?: string
+  hidden: boolean
+  onToggleHidden: () => void
+  onDelete?: () => void
+}) {
+  return (
+    <div className="detail-actions">
+      {editTo && (
+        <Link to={editTo} className="button button-primary button-wide with-icon">
+          <ActionIcon name="edit" />
+          Upraviť
+        </Link>
+      )}
+      <div className="action-row">
+        <button type="button" className="button button-ghost with-icon" onClick={onToggleHidden}>
+          <ActionIcon name={hidden ? 'show' : 'hide'} />
+          {hidden ? 'Zobraziť' : 'Skryť'}
+        </button>
+        {onDelete && (
+          <button type="button" className="button button-danger-ghost with-icon" onClick={onDelete}>
+            <ActionIcon name="delete" />
+            Vymazať
+          </button>
+        )}
+      </div>
+    </div>
+  )
+}
+
+/** Variants picked for an exercise of a training – indented under it with an arrow. */
+export function ItemVariants({ name, variants }: { name: string; variants?: { exerciseId: string; name: string }[] }) {
+  if (!variants?.length) return null
+  return (
+    <ul className="item-variants" aria-label={`Varianty: ${name}`}>
+      {variants.map((v) => (
+        <li key={v.exerciseId}>
+          <span className="variant-arrow" aria-hidden="true">↳</span>
+          {v.name}
+        </li>
+      ))}
+    </ul>
+  )
 }

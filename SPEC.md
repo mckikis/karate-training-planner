@@ -158,6 +158,9 @@ Funkcie mimo rozsahu verzie 1 (kap. 6), ktoré sú už doplnené v aplikácii. T
 - **6.4** Tréning má skupinu „Pre koho“ (Prípravka, Starší, Ja). Skupina nastaví čas začiatku: Prípravka 16:30, Starší 17:00.
 - **6.5** Typy tréningov (Kumite - údery, Kumite - kopy, Kumite - zmiešaný, Kumite - taktika, Kata, Kondícia, Silový, Plyometria, Prípravka) majú pastelové farby, tréner môže pridať vlastný typ. Tréningy sa dajú filtrovať podľa typu, skupiny, názvu a autora.
 
+- **6.6** Cvik môže mať **varianty** (napr. Frekvenčný rebrík → na jednej nohe, na oboch nohách, dnu-von): názov, popis a obrázok alebo video, bez vlastných časov. Variant pridá každý tréner, môže byť súkromný, obľúbený alebo skrytý ako bežný cvik. V zozname cvikov je pri cviku napísaný počet variantov.
+- **6.7** Pri tvorbe tréningu rozbalím pri cviku jeho varianty a zaškrtnem tie, ktoré sa budú cvičiť. Série, čas a pauzu zadávam pre celý cvik. V tréningu aj v časomiere sú varianty pod cvikom so šípkou ↳.
+
 ### Akceptačné kritériá verzie 2
 
 | # | Funkcia | Postup | Očakávaný výsledok |
@@ -171,3 +174,4 @@ Funkcie mimo rozsahu verzie 1 (kap. 6), ktoré sú už doplnené v aplikácii. T
 | K25 | 5.6 | Séria 1:30, výmena po 0:45, čas na výmenu 0:05, atoshi zapnuté | Cvik 45 s → výmena 5 s (bez 3-2-1) → cvik 45 s; atoshi pípne 15 s pred koncom oboch častí. |
 | K26 | 6.4 | Nový tréning, skupina Prípravka | Čas začiatku je 16:30. |
 | K27 | 6.3 | Kopírovať tréning → vyberiem starší tréning | Skopíruje sa názov, typ, skupina, popis a cviky; dátum ostane dnešný. |
+| K28 | 6.6, 6.7 | Pridám cviku „Frekvenčný rebrík“ 3 varianty, v tréningu vyberiem 2 z nich | V zozname je „3 varianty“; v tréningu sú pod cvikom 2 varianty so šípkou ↳, čas cviku sa nezmení. |

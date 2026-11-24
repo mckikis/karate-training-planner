@@ -18,8 +18,8 @@ import {
   type TrainingItem,
 } from '../model'
 import { addTrainingType, canEditTraining, isMine, saveTraining, useData } from '../cloud'
-import { clockAt, formatDate, formatDuration, sectionItems, todayIso, trainingPlan, trainingSeconds } from '../time'
-import { DurationField, Thumb, TopBar } from '../components'
+import { clockAt, formatDate, formatDuration, sectionItems, todayIso, trainingPlan, trainingSeconds, variantCount } from '../time'
+import { DurationField, ItemVariants, Thumb, TopBar } from '../components'
 import { SortableList } from '../sortable'
 import { useSettings } from '../settings'
 import { TRAINING_TEMPLATE } from '../trainingTemplate'
@@ -145,6 +145,23 @@ export default function TrainingFormPage() {
     )
   }
 
+  /** Ticking a variant adds its exercise to the training (if it is not there yet) with that variant. */
+  function toggleVariant(section: Section, parent: Exercise, variant: Exercise) {
+    setters[section]((current) => {
+      const existing = current.find((i) => i.exerciseId === parent.id)
+      const picked = { exerciseId: variant.id, name: variant.name }
+      if (!existing) {
+        const category = categories.find((c) => c.id === parent.categoryId)
+        return [...current, { ...itemFromExercise(parent, section, category), variants: [picked] }]
+      }
+      const has = existing.variants?.some((v) => v.exerciseId === variant.id)
+      const variants = has
+        ? (existing.variants ?? []).filter((v) => v.exerciseId !== variant.id)
+        : [...(existing.variants ?? []), picked]
+      return current.map((i) => (i === existing ? { ...i, variants } : i))
+    })
+  }
+
   function updateMainItem(index: number, item: TrainingItem) {
     setMain((current) => current.map((old, i) => (i === index ? item : old)))
   }
@@ -222,7 +239,9 @@ export default function TrainingFormPage() {
       <ExercisePicker
         title={`Cviky: ${sectionLabel(picking)}`}
         selectedIds={lists[picking].map((i) => i.exerciseId)}
+        selectedVariants={lists[picking].flatMap((i) => i.variants?.map((v) => v.exerciseId) ?? [])}
         onToggle={(e) => toggleExercise(picking, e)}
+        onToggleVariant={(parent, variant) => toggleVariant(picking, parent, variant)}
         onDone={() => setPicking(null)}
       />
     )
@@ -250,7 +269,10 @@ export default function TrainingFormPage() {
           onReorder={(next) => setList(() => next)}
           renderItem={(item, handle) => (
             <div className="row part-row">
-              <span className="row-title">{item.name}</span>
+              <span className="row-main">
+                <span className="row-title">{item.name}</span>
+                <ItemVariants name={item.name} variants={item.variants} />
+              </span>
               {handle}
               <button
                 type="button"
@@ -390,6 +412,7 @@ export default function TrainingFormPage() {
                   <span className="item-number">{index + 1}</span>
                   <span className="item-title">
                     <span className="item-name">{item.name}</span>
+                    <ItemVariants name={item.name} variants={item.variants} />
                     <span className="item-clock">
                       {at(start)} – {at(end)} · {formatDuration(end - start)} min
                     </span>
@@ -455,30 +478,47 @@ function Part({ section, clock, duration, children }: { section: Section; clock:
 function ExercisePicker({
   title,
   selectedIds,
+  selectedVariants,
   onToggle,
+  onToggleVariant,
   onDone,
 }: {
   title: string
   selectedIds: string[]
+  selectedVariants: string[]
   onToggle: (e: Exercise) => void
+  onToggleVariant: (parent: Exercise, variant: Exercise) => void
   onDone: () => void
 }) {
   const data = useData()
   const categories = [...data.categories].sort(byOrder)
   const { autoplayVideos, othersExercises } = useSettings()
   // Same exercises as in the library (Cviky), plus the ones already in the training.
-  const exercises = data.exercises.filter(
-    (e) => othersExercises || e.isDefault || e.byAdmin || isMine(e) || selectedIds.includes(e.id),
+  const shownToMe = data.exercises.filter(
+    (e) =>
+      othersExercises || e.isDefault || e.byAdmin || isMine(e) || selectedIds.includes(e.id) || selectedVariants.includes(e.id),
   )
+  // Variants are listed under their exercise, not on their own.
+  const exercises = shownToMe.filter((e) => !e.parentId)
+  const variantsOf = (id: string) =>
+    shownToMe
+      .filter((v) => v.parentId === id && (!v.hidden || selectedVariants.includes(v.id)))
+      .sort((a, b) => Number(!!b.favorite) - Number(!!a.favorite) || a.order - b.order)
   const [search, setSearch] = useState('')
   const [expanded, setExpanded] = useState<string[]>([])
+  // Exercises whose variants are open; the ones with picked variants are open from the start.
+  const [openVariants, setOpenVariants] = useState<string[]>(() =>
+    data.exercises.filter((v) => v.parentId && selectedVariants.includes(v.id)).map((v) => v.parentId!),
+  )
   const [filter, setFilter] = useState<string | 'all'>('all')
   const query = search.trim().toLowerCase()
   const visible = exercises.filter(
     (e) =>
       !e.hidden &&
       (filter === 'all' || e.categoryId === filter) &&
-      (!query || e.name.toLowerCase().includes(query)),
+      (!query ||
+        e.name.toLowerCase().includes(query) ||
+        variantsOf(e.id).some((v) => v.name.toLowerCase().includes(query))),
   )
   const withExercises = categories.filter((c) => exercises.some((e) => !e.hidden && e.categoryId === c.id))
 
@@ -530,15 +570,58 @@ function ExercisePicker({
               {shown.map((e) => {
                 const order = selectedIds.indexOf(e.id)
                 const checked = order !== -1
+                const variants = variantsOf(e.id)
+                const open = openVariants.includes(e.id) || (!!query && variants.some((v) => v.name.toLowerCase().includes(query)))
+                const picked = variants.filter((v) => selectedVariants.includes(v.id)).length
                 return (
                   <li key={e.id}>
                     <label className={`row check-row ${checked ? 'check-row-on' : ''}`}>
                       <input type="checkbox" checked={checked} onChange={() => onToggle(e)} />
                       <span className="check-box" aria-hidden="true">{checked ? order + 1 : ''}</span>
                       <Thumb {...exerciseMedia(e)} label={e.name} play={autoplayVideos} />
-                      <span className="row-title">{e.name}</span>
+                      <span className="row-main">
+                        <span className="row-title">{e.name}</span>
+                        {variants.length > 0 && (
+                          <span className="variant-badge">
+                            {variantCount(variants.length)}
+                            {picked > 0 && ` · vybrané ${picked}`}
+                          </span>
+                        )}
+                      </span>
                       {e.favorite && <span className="star-mark" aria-label="Obľúbený">★</span>}
                     </label>
+                    {variants.length > 0 && (
+                      <button
+                        type="button"
+                        className="variant-toggle"
+                        aria-expanded={open}
+                        onClick={() =>
+                          setOpenVariants((list) => (list.includes(e.id) ? list.filter((x) => x !== e.id) : [...list, e.id]))
+                        }
+                      >
+                        <span className={`variant-chevron ${open ? 'variant-chevron-open' : ''}`} aria-hidden="true">›</span>
+                        {open ? 'Skryť varianty' : `Vybrať varianty (${variants.length})`}
+                      </button>
+                    )}
+                    {open && variants.length > 0 && (
+                      <ul className="picker-variants">
+                        {variants.map((v) => {
+                          const on = selectedVariants.includes(v.id)
+                          return (
+                            <li key={v.id}>
+                              <label className={`row check-row variant-check ${on ? 'check-row-on' : ''}`}>
+                                <span className="variant-arrow" aria-hidden="true">↳</span>
+                                <input type="checkbox" checked={on} onChange={() => onToggleVariant(e, v)} />
+                                <span className="check-box" aria-hidden="true">{on ? '✓' : ''}</span>
+                                <Thumb {...exerciseMedia(v)} label={v.name} play={autoplayVideos} />
+                                <span className="row-title">{v.name}</span>
+                                {v.favorite && <span className="star-mark" aria-label="Obľúbený">★</span>}
+                              </label>
+                            </li>
+                          )
+                        })}
+                      </ul>
+                    )}
                   </li>
                 )
               })}

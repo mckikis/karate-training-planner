@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useNavigate, useParams } from 'react-router'
+import { useNavigate, useParams, useSearchParams } from 'react-router'
 import { byOrder, exerciseMedia, timingOf, toTimeMode, type Timing } from '../model'
 import { canEditExercise, isMine, saveExercise, useData, type MediaChange } from '../cloud'
 import { Media, TopBar } from '../components'
@@ -41,6 +41,10 @@ export default function ExerciseFormPage() {
   const data = useData()
   const categories = [...data.categories].sort(byOrder)
   const editing = editingId ? data.exercises.find((e) => e.id === editingId) : undefined
+  // A variant (e.g. "na jednej nohe" of "Frekvenčný rebrík"): name, description and picture only.
+  const [searchParams] = useSearchParams()
+  const parentId = editing?.parentId ?? searchParams.get('parent') ?? undefined
+  const parent = parentId ? data.exercises.find((e) => e.id === parentId) : undefined
 
   const [loaded, setLoaded] = useState(!editingId)
   const [name, setName] = useState('')
@@ -72,10 +76,13 @@ export default function ExerciseFormPage() {
     return <TopBar title="Tento cvik môže upraviť len jeho autor alebo správca" />
   }
 
-  const category = categories.find((c) => c.id === categoryId)
+  // A variant is always in the category of its exercise.
+  const effectiveCategoryId = parent?.categoryId ?? categoryId
+  const category = categories.find((c) => c.id === effectiveCategoryId)
   const timeOnly = !!category?.timeOnly
   // An exercise in a private category is private too – others do not see the category.
-  const forcedPrivate = !!category?.private
+  // A variant of a private exercise is private as well.
+  const forcedPrivate = !!category?.private || !!parent?.private
   // Only the author decides whether an own exercise is private; starter and other admins' exercises stay as they are.
   const ownsPrivacy = !editing || (isMine(editing) && !editing.isDefault)
 
@@ -95,7 +102,7 @@ export default function ExerciseFormPage() {
       setError('Zadaj názov.')
       return
     }
-    if (categoryId === undefined) {
+    if (effectiveCategoryId === undefined) {
       setError('Vyber kategóriu.')
       return
     }
@@ -104,13 +111,16 @@ export default function ExerciseFormPage() {
     try {
       const id = await saveExercise(editingId, {
         name: name.trim(),
-        categoryId,
+        categoryId: effectiveCategoryId,
         description: description.trim(),
         timing: timeOnly ? toTimeMode(timing) : timing,
         media,
         private: ownsPrivacy ? isPrivate || forcedPrivate : !!editing?.private,
+        parentId: editing ? undefined : parent?.id,
       })
       if (editingId) navigate(-1)
+      // A new variant: back to its exercise, where it is listed.
+      else if (parent) navigate(`/exercises/${parent.id}`, { replace: true })
       else navigate(`/exercises/${id}`, { replace: true })
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Uloženie sa nepodarilo.')
@@ -125,7 +135,12 @@ export default function ExerciseFormPage() {
 
   return (
     <div className="page page-form">
-      <TopBar title={editingId ? 'Upraviť cvik' : 'Nový cvik'} />
+      <TopBar title={parent ? (editingId ? 'Upraviť variant' : 'Nový variant') : editingId ? 'Upraviť cvik' : 'Nový cvik'} />
+      {parent && (
+        <p className="variant-of">
+          ↳ Variant cviku <strong>{parent.name}</strong> · čas sa zadáva pre celý cvik pri tvorbe tréningu
+        </p>
+      )}
 
       <form
         className="form"
@@ -136,17 +151,23 @@ export default function ExerciseFormPage() {
       >
         <label className="field">
           <span className="field-label">Názov</span>
-          <input value={name} onChange={(e) => setName(e.target.value)} placeholder="napr. Gyaku zuki" />
+          <input
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder={parent ? 'napr. Na jednej nohe' : 'napr. Gyaku zuki'}
+          />
         </label>
 
-        <label className="field">
-          <span className="field-label">Kategória</span>
-          <select value={categoryId ?? ''} onChange={(e) => setCategoryId(e.target.value)}>
-            {categories.map((c) => (
-              <option key={c.id} value={c.id}>{c.name}</option>
-            ))}
-          </select>
-        </label>
+        {!parent && (
+          <label className="field">
+            <span className="field-label">Kategória</span>
+            <select value={categoryId ?? ''} onChange={(e) => setCategoryId(e.target.value)}>
+              {categories.map((c) => (
+                <option key={c.id} value={c.id}>{c.name}</option>
+              ))}
+            </select>
+          </label>
+        )}
 
         <label className="field">
           <span className="field-label">Popis</span>
@@ -182,6 +203,7 @@ export default function ExerciseFormPage() {
           <p className="hint">Obrázok uvidia aj ostatní tréneri. Na nahratie potrebuješ internet.</p>
         </div>
 
+        {!parent && (
         <fieldset className="card">
           <legend className="card-title">Predvolené časy</legend>
           <p className="hint">
@@ -191,6 +213,7 @@ export default function ExerciseFormPage() {
           </p>
           <TimingFields value={timeOnly ? toTimeMode(timing) : timing} onChange={setTiming} timeOnly={timeOnly} />
         </fieldset>
+        )}
 
         {ownsPrivacy && (
           <label className="check-line">
@@ -200,9 +223,11 @@ export default function ExerciseFormPage() {
               disabled={forcedPrivate}
               onChange={(e) => setIsPrivate(e.target.checked)}
             />
-            {forcedPrivate
-              ? 'Súkromný – kategória je súkromná, cvik uvidíš len ty'
-              : 'Súkromný – uvidíš ho len ty (inak ho uvidia aj ostatní tréneri)'}
+            {parent?.private
+              ? 'Súkromný – cvik je súkromný, variant uvidíš len ty'
+              : forcedPrivate
+                ? 'Súkromný – kategória je súkromná, cvik uvidíš len ty'
+                : 'Súkromný – uvidíš ho len ty (inak ho uvidia aj ostatní tréneri)'}
           </label>
         )}
 
@@ -210,7 +235,7 @@ export default function ExerciseFormPage() {
 
         <div className="form-actions">
           <button type="submit" className="button button-primary" disabled={saving}>
-            {saving ? (media.kind === 'new' ? 'Nahrávam…' : 'Ukladám…') : 'Uložiť cvik'}
+            {saving ? (media.kind === 'new' ? 'Nahrávam…' : 'Ukladám…') : parent ? 'Uložiť variant' : 'Uložiť cvik'}
           </button>
         </div>
       </form>

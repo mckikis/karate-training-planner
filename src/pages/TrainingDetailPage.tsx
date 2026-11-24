@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router'
 import { exerciseMedia, sectionLabel, tagClass, type Exercise, type Section, type TrainingItem } from '../model'
 import { canEditTraining, deleteTraining, setHidden, updateTraining, useData } from '../cloud'
 import { clockAt, formatDate, formatDuration, timingSummary, trainingPlan } from '../time'
-import { AuthorNote, Media, Thumb, TopBar } from '../components'
+import { ActionIcon, AuthorNote, DetailActions, ItemVariants, Media, Thumb, TopBar } from '../components'
 import { updateSettings, useSettings } from '../settings'
 import { confirmDialog } from '../confirm'
 
@@ -67,10 +67,7 @@ export default function TrainingDetailPage() {
 
   return (
     <div className="page">
-      <TopBar
-        title=""
-        right={mine && <Link to={`/trainings/${id}/edit`} className="text-button">Upraviť</Link>}
-      />
+      <TopBar title="" />
 
       <p className="eyebrow">
         {formatDate(training.date)}
@@ -88,8 +85,9 @@ export default function TrainingDetailPage() {
       {training.description && <p className="body-text">{training.description}</p>}
 
       {entries.length > 0 && (
-        <Link to={`/timer?training=${id}`} className="button button-primary button-wide">
-          ▶ Spustiť časomieru tréningu
+        <Link to={`/timer?training=${id}`} className="button button-primary button-wide with-icon">
+          <ActionIcon name="timer" />
+          Spustiť časomieru
         </Link>
       )}
 
@@ -148,6 +146,7 @@ export default function TrainingDetailPage() {
                           </span>
                         )}
                         <span className="row-title">{item.name}</span>
+                        <ItemVariants name={item.name} variants={item.variants} />
                         {!simple && (
                           <span className="row-sub">
                             {timingSummary(item)}
@@ -208,6 +207,7 @@ export default function TrainingDetailPage() {
         <ItemSheet
           entry={entries[openIndex]}
           exercise={exerciseOf(entries[openIndex].item)}
+          variants={data.exercises}
           clock={`${at(entries[openIndex].start)} – ${at(entries[openIndex].end)}`}
           position={openIndex + 1}
           count={entries.length}
@@ -217,14 +217,12 @@ export default function TrainingDetailPage() {
         />
       )}
 
-      <button type="button" className="button button-ghost button-wide" onClick={toggleHidden}>
-        {training.hidden ? 'Zobraziť tréning znova' : 'Skryť tréning'}
-      </button>
-      {mine && (
-        <button type="button" className="button button-danger-ghost" onClick={remove}>
-          Vymazať tréning
-        </button>
-      )}
+      <DetailActions
+        editTo={mine ? `/trainings/${id}/edit` : undefined}
+        hidden={!!training.hidden}
+        onToggleHidden={toggleHidden}
+        onDelete={mine ? remove : undefined}
+      />
     </div>
   )
 }
@@ -242,6 +240,7 @@ interface Entry {
 function ItemSheet({
   entry,
   exercise,
+  variants,
   clock,
   position,
   count,
@@ -251,6 +250,7 @@ function ItemSheet({
 }: {
   entry: Entry
   exercise?: Exercise
+  variants: Exercise[]
   clock: string
   position: number
   count: number
@@ -298,6 +298,26 @@ function ItemSheet({
         </p>
         <h1 className="page-title">{item.name}</h1>
         {exercise?.description && <p className="body-text">{exercise.description}</p>}
+        {!!item.variants?.length && (
+          <section className="card">
+            <h2 className="card-title">Varianty v tomto tréningu</h2>
+            <ul className="variant-list">
+              {item.variants.map((v) => {
+                const variant = variants.find((e) => e.id === v.exerciseId)
+                return (
+                  <li key={v.exerciseId} className="row variant-row">
+                    <span className="variant-arrow" aria-hidden="true">↳</span>
+                    <Thumb {...exerciseMedia(variant)} label={v.name} play />
+                    <span className="row-main">
+                      <span className="row-title">{v.name}</span>
+                      {variant?.description && <span className="row-sub">{variant.description}</span>}
+                    </span>
+                  </li>
+                )
+              })}
+            </ul>
+          </section>
+        )}
 
         <section className="card">
           <h2 className="card-title">V tomto tréningu</h2>

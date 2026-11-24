@@ -2,7 +2,7 @@ import { useState, type ReactNode } from 'react'
 import { Link } from 'react-router'
 import { byFavoriteThenOrder, byOrder, exerciseMedia, type Exercise } from '../model'
 import { addCategory as addCloudCategory, isMine, saveOrder, setFavorite, useData } from '../cloud'
-import { timingSummary } from '../time'
+import { timingSummary, variantCount } from '../time'
 import { EmptyState, Footer, PageHeader, SettingsLink, StarButton, Thumb } from '../components'
 import { updateSettings, useSettings } from '../settings'
 import { SortableList } from '../sortable'
@@ -31,11 +31,18 @@ export default function ExercisesPage() {
   const sorting = sortingId !== null
 
   const query = sorting ? '' : search.trim().toLowerCase()
-  const active = exercises.filter((e) => !e.hidden)
+  // Variants are not in the list – they are shown in the detail of their exercise.
+  const variantsOf = new Map<string, Exercise[]>()
+  for (const v of exercises) {
+    if (v.parentId && !v.hidden) variantsOf.set(v.parentId, [...(variantsOf.get(v.parentId) ?? []), v])
+  }
+  const nameOf = new Map(data.exercises.map((e) => [e.id, e.name]))
+  const active = exercises.filter((e) => !e.hidden && !e.parentId)
   const hidden = exercises.filter((e) => e.hidden)
-  const visible = active.filter(
-    (e) => (filter === 'all' || e.categoryId === filter) && (!query || e.name.toLowerCase().includes(query)),
-  )
+  // Searching also finds an exercise by the name of its variant.
+  const matches = (e: Exercise) =>
+    e.name.toLowerCase().includes(query) || (variantsOf.get(e.id) ?? []).some((v) => v.name.toLowerCase().includes(query))
+  const visible = active.filter((e) => (filter === 'all' || e.categoryId === filter) && (!query || matches(e)))
   const shownCategories = categories.filter((c) => visible.some((e) => e.categoryId === c.id))
 
   function addCategory() {
@@ -179,7 +186,9 @@ export default function ExercisesPage() {
                   items={[...inCategory].sort(byOrder)}
                   getId={(e) => e.id}
                   onReorder={(list) => saveOrder('exercises', list.map((e) => e.id))}
-                  renderItem={(e, handle) => <ExerciseRow exercise={e} handle={handle} play={autoplayVideos} />}
+                  renderItem={(e, handle) => (
+                    <ExerciseRow exercise={e} handle={handle} play={autoplayVideos} variants={variantsOf.get(e.id)?.length} />
+                  )}
                 />
               </section>
             )
@@ -195,7 +204,7 @@ export default function ExercisesPage() {
               <ul className="list">
                 {shown.map((e) => (
                   <li key={e.id}>
-                    <ExerciseRow exercise={e} play={autoplayVideos} />
+                    <ExerciseRow exercise={e} play={autoplayVideos} variants={variantsOf.get(e.id)?.length} />
                   </li>
                 ))}
               </ul>
@@ -218,7 +227,7 @@ export default function ExercisesPage() {
             <ul className="list">
               {[...hidden].sort(byOrder).map((e) => (
                 <li key={e.id}>
-                  <ExerciseRow exercise={e} play={autoplayVideos} />
+                  <ExerciseRow exercise={e} play={autoplayVideos} parentName={e.parentId ? nameOf.get(e.parentId) : undefined} />
                 </li>
               ))}
             </ul>
@@ -238,7 +247,19 @@ export default function ExercisesPage() {
 }
 
 /** One exercise in the list. With a handle it is in "Usporiadať" mode and does not open. */
-function ExerciseRow({ exercise, handle, play }: { exercise: Exercise; handle?: ReactNode; play: boolean }) {
+function ExerciseRow({
+  exercise,
+  handle,
+  play,
+  variants = 0,
+  parentName,
+}: {
+  exercise: Exercise
+  handle?: ReactNode
+  play: boolean
+  variants?: number
+  parentName?: string
+}) {
   const media = exerciseMedia(exercise)
   const content = (
     <>
@@ -249,8 +270,9 @@ function ExerciseRow({ exercise, handle, play }: { exercise: Exercise; handle?: 
           {exercise.name}
         </span>
         <span className="row-sub">
-          {timingSummary(exercise)}
+          {parentName ? `Variant cviku ${parentName}` : timingSummary(exercise)}
         </span>
+        {variants > 0 && <span className="variant-badge">{variantCount(variants)}</span>}
       </span>
     </>
   )

@@ -48,6 +48,11 @@ export interface Exercise extends Timing, Author {
   byAdmin?: boolean // created by the club admin – everybody sees it
   private?: boolean // only the author sees it
   updatedAt?: number
+  /**
+   * Variant of another exercise (e.g. "na jednej nohe" of "Frekvenčný rebrík"): name, description
+   * and picture only – the times are set for the whole exercise. Only one level, a variant has no variants.
+   */
+  parentId?: string
 }
 
 /** Parts of a training. Older trainings have no parts – all their exercises are in the main part. */
@@ -70,6 +75,18 @@ export interface TrainingItem extends Timing {
   restAfter: number
   timeOnly?: boolean
   section?: Section // missing = 'main'
+  /** Variants picked for this training (copies of their names); the times are for the whole exercise. */
+  variants?: ItemVariant[]
+}
+
+export interface ItemVariant {
+  exerciseId: string
+  name: string
+}
+
+/** "Frekvenčný rebrík: na jednej nohe, dnu-von" – for the timer. */
+export function itemTitle(item: { name: string; variants?: ItemVariant[] }): string {
+  return item.variants?.length ? `${item.name}: ${item.variants.map((v) => v.name).join(', ')}` : item.name
 }
 
 export interface Training extends Author {

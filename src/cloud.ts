@@ -182,7 +182,7 @@ function computeData() {
     ready: SHARED.every(isLoaded),
     trainingTypes: raw.trainingTypes,
     categories,
-    exercises: raw.exercises.map((e) => {
+    exercises: withParents(raw.exercises).map((e) => {
       const own = p.timing[e.id]
       const merged = {
         ...e,
@@ -203,6 +203,15 @@ function computeData() {
     })),
   }
   emit()
+}
+
+/**
+ * Variants whose exercise is gone (deleted, or private of another coach) are left out –
+ * nobody could reach them.
+ */
+function withParents(exercises: Exercise[]): Exercise[] {
+  const ids = new Set(exercises.map((e) => e.id))
+  return exercises.filter((e) => !e.parentId || ids.has(e.parentId))
 }
 
 function setSession(next: Session) {
@@ -893,6 +902,8 @@ export interface ExerciseInput {
   timing: Timing
   media: MediaChange
   private: boolean
+  /** New variant of this exercise (set only when creating). */
+  parentId?: string
 }
 
 /** Creates or changes an own exercise. Uploading a picture needs the internet. Returns the id. */
@@ -926,6 +937,7 @@ export async function saveExercise(id: string | undefined, input: ExerciseInput)
     setDoc(ref, {
       ...fields,
       order: Date.now(), // at the end of its category
+      ...(input.parentId ? { parentId: input.parentId } : {}),
       isDefault: false,
       byAdmin: member.admin,
       createdBy: member.uid,
@@ -941,6 +953,13 @@ export function deleteExercise(exercise: Exercise) {
   background(deleteDoc(doc(fs, 'exercises', exercise.id)))
   if (exercise.mediaId) deleteMedia(exercise.mediaId).catch(() => {})
   if (exercise.isDefault) rememberRemovedStarter([exercise.id])
+  // Its variants go too – those the coach may delete; the others are no longer shown (withParents).
+  raw.exercises
+    .filter((v) => v.parentId === exercise.id && canDeleteExercise(v))
+    .forEach((v) => {
+      background(deleteDoc(doc(fs, 'exercises', v.id)))
+      if (v.mediaId) deleteMedia(v.mediaId).catch(() => {})
+    })
 }
 
 /** Who may change an exercise: the admin every exercise, other coaches their own ones. */
