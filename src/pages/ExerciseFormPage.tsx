@@ -185,7 +185,8 @@ export default function ExerciseFormPage() {
         <fieldset className="card">
           <legend className="card-title">Predvolené časy</legend>
           <p className="hint">
-            Používajú sa, keď pridáš tento cvik do tréningu. Možnosť úpravy priamo v tréningu.
+            Takto sa cvik nastaví každému trénerovi, keď ho pridá do tréningu: na opakovania alebo na čas, série
+            a oddych. Tréner si ich môže zmeniť v tréningu alebo len pre seba v detaile cviku.
             {timeOnly && ' Cviky v tejto kategórii sa zadávajú len na čas.'}
           </p>
           <TimingFields value={timeOnly ? toTimeMode(timing) : timing} onChange={setTiming} timeOnly={timeOnly} />

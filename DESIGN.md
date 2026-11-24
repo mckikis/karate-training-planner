@@ -57,12 +57,12 @@ erDiagram
 | --- | --- | --- |
 | `config/access` | `keys`, `adminKeys` – zoznamy prihlasovacích kľúčov | nikto z appky; nastavuje správca vo Firebase konzole |
 | `members/{uid}` | `name`, `key`, `admin` | len daný tréner |
-| `prefs/{uid}` | `favorites`, `hidden`, `order`, `timeOnly` – osobné nastavenia | len daný tréner |
+| `prefs/{uid}` | `favorites`, `hidden`, `order`, `timeOnly`, `timing` – osobné nastavenia | len daný tréner |
 | `categories` | `name`, `order`, `timeOnly`, `private`, `starterKey`, autor | všetci tréneri; súkromné len autor |
 | `exercises` | `name`, `description`, `categoryId`, `order`, Timing, `mediaId` / `mediaFile`, `isDefault`, `byAdmin`, `private`, autor | všetci; mení autor alebo správca |
 | `trainings` | `name`, `description`, `date`, `startTime`, `tag`, `group`, `items`, `warmupSeconds`, `cooldownSeconds`, `done`, `doneAt`, `coach`, `private`, autor | všetci; mení autor alebo správca |
 | `trainingTypes` | vlastné typy tréningov | všetci |
-| `appSettings/global` | `removedStarter` – predvolené položky, ktoré správca vymazal | číta každý, zapisuje správca |
+| `appSettings/global` | `starterSeeded` – predvolené dáta už sú vo Firebase; `removedStarter` – predvolené položky, ktoré správca vymazal | číta každý, zapisuje správca |
 | `media/{id}/chunks/{n}` | obrázok alebo video rozdelené na kúsky po 900 kB | všetci; maže autor alebo správca |
 
 Autor = `createdBy` (uid) a `createdByName` (meno). Predvolené položky majú `createdBy = 'starter'`.
@@ -97,9 +97,11 @@ Pravidlá prístupu sú v `firestore.rules` a musia zodpovedať funkciám v `clo
 
 Predvolené kategórie a cviky sú v `src/starterData.ts`, ich obrázky a videá v `public/exercises/`. Funkcia `syncStarterData()` beží po prihlásení, keď prídu dáta zo servera:
 
-1. Chýbajúcu predvolenú kategóriu alebo cvik pridá s pevným id (`s-c-…`, `s-e-…`), takže z dvoch telefónov nevzniknú duplikáty.
-2. Položky, ktoré správca vymazal (`appSettings/global.removedStarter`), znova nepridá.
-3. Nemení údaje, ktoré už niekto upravil.
+1. Do **prázdneho** Firebase projektu zapíše predvolené kategórie a cviky s pevným id (`s-c-…`, `s-e-…`), takže z dvoch telefónov nevzniknú duplikáty.
+2. Keď už vo Firebase predvolené dáta sú (alebo je nastavené `appSettings/global.starterSeeded`), **nerobí nič**. Pravdou je Firebase: čo správca v appke upravil alebo vymazal, ostane tak pre všetkých trénerov, aj pre nových. Zmeny v `starterData.ts` sa do existujúceho projektu nedostanú – nové cviky pre všetkých pridáva správca v appke.
+3. Pri presune dát zo staršej verzie appky sa cvik s rovnakým názvom v rovnakej kategórii ani rovnaký tréning nepridá druhýkrát.
+
+**Predvolené časy cviku:** časy a spôsob (opakovania / čas), ktoré nastaví autor alebo správca, sa použijú každému trénerovi pri pridaní cviku do tréningu. Tréner, ktorý cvik nemôže upraviť, si časy môže zmeniť len pre seba (`prefs/{uid}.timing`).
 
 **Nahrané médiá:** obrázok sa pred nahraním zmenší, video sa nahrá celé (najviac 40 MB). Súbor sa rozdelí na kúsky po 900 kB do `media/{id}/chunks`, lebo Firebase Storage by vyžadoval platený plán. Stiahnuté médium sa uloží do `mediaCache`, každý telefón ho sťahuje iba raz.
 
@@ -146,6 +148,7 @@ Ostatné: `model.ts` (typy, typy tréningov a farby, skupiny a ich čas začiatk
 | Skrytie a mazanie | skrytie je osobné; mazanie len autor alebo správca, s potvrdením v appke (K6, K14) |
 | Kategória „len na čas“ | bez prepínača Opakovania/Čas, cviky sa prepočítajú na čas (K8) |
 | Nový tréning | šablóna alebo kópia; čas začiatku podľa skupiny (Prípravka 16:30, Starší 17:00) |
+| Pauza po cviku | v hlavnej časti medzi cvikmi; pridá sa tlačidlom „+ Pauza po cviku“ (predvolene žiadna), dĺžka sa zadá alebo vyberie 30 s / 1 / 2 / 3 min; časomiera ju odpočíta ako „Prestávka“ |
 | Médium z aplikácie | najviac 40 MB (K3) |
 
 ## 8. Obrazovky a navigácia

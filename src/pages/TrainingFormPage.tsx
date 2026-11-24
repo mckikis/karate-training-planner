@@ -25,7 +25,8 @@ import { useSettings } from '../settings'
 import { TRAINING_TEMPLATE } from '../trainingTemplate'
 import { TimingFields } from './TimingFields'
 
-const DEFAULT_REST_AFTER = 60
+// A pause after an exercise is added on purpose with "+ Pauza po cviku".
+const DEFAULT_REST_AFTER = 0
 const DEFAULT_START_TIME = '17:00'
 const SHOW_FIRST = 7
 const NEW_TYPE = '__new__'
@@ -240,7 +241,7 @@ export default function TrainingFormPage() {
     return (
       <Part section={section} clock={`${at(start)} – ${at(end)}`} duration={end - start}>
         <div className="grid-2">
-          <DurationField label={`Celkový čas: ${sectionLabel(section).toLowerCase()}`} value={seconds} onChange={setSeconds} />
+          <DurationField label={`Celkový čas: ${sectionLabel(section).toLowerCase()}`} value={seconds} onChange={setSeconds} step={60} />
         </div>
         <SortableList
           className="part-list"
@@ -383,6 +384,7 @@ export default function TrainingFormPage() {
             getId={(row) => row.item.exerciseId}
             onReorder={(newRows) => setMain(newRows.map((row) => row.item))}
             renderItem={({ item, start, end }, handle, index) => (
+              <>
               <article className="card item-card">
                 <header className="item-head">
                   <span className="item-number">{index + 1}</span>
@@ -403,16 +405,15 @@ export default function TrainingFormPage() {
                   </button>
                 </header>
                 <TimingFields value={item} onChange={(next) => updateMainItem(index, next)} timeOnly={item.timeOnly} />
-                {index < main.length - 1 && (
-                  <div className="grid-3">
-                    <DurationField
-                      label="Prestávka pred ďalším"
-                      value={item.restAfter}
-                      onChange={(restAfter) => updateMainItem(index, { ...item, restAfter })}
-                    />
-                  </div>
-                )}
               </article>
+              {index < main.length - 1 && (
+                <PauseAfter
+                  seconds={item.restAfter}
+                  clock={`${at(end)} – ${at(end + item.restAfter)}`}
+                  onChange={(restAfter) => updateMainItem(index, { ...item, restAfter })}
+                />
+              )}
+              </>
             )}
           />
           <button type="button" className="button button-outline" onClick={() => setPicking('main')}>
@@ -619,6 +620,66 @@ function TrainingCopyList({ onPick, onCancel }: { onPick: (t: Training) => void;
           })}
         </ul>
       )}
+    </div>
+  )
+}
+
+const PAUSE_PRESETS = [30, 60, 120, 180]
+
+/**
+ * Pause between two exercises of the main part (restAfter). Without a pause there is only
+ * a "+ Pauza po cviku" button; with one, its length can be typed or picked from presets.
+ */
+function PauseAfter({ seconds, clock, onChange }: { seconds: number; clock: string; onChange: (seconds: number) => void }) {
+  // Stays open while the length is typed, also when it is 0:00 for a moment.
+  const [open, setOpen] = useState(seconds > 0)
+  if (!open && seconds <= 0) {
+    return (
+      <button
+        type="button"
+        className="pause-add"
+        onClick={() => {
+          setOpen(true)
+          onChange(60)
+        }}
+      >
+        + Pauza po cviku
+      </button>
+    )
+  }
+  return (
+    <div className="pause-block">
+      <div className="pause-head">
+        <span className="pause-title">⏸ Pauza</span>
+        <span className="pause-clock">{clock}</span>
+        <button
+          type="button"
+          className="icon-button small"
+          aria-label="Odstrániť pauzu"
+          onClick={() => {
+            setOpen(false)
+            onChange(0)
+          }}
+        >
+          ✕
+        </button>
+      </div>
+      <div className="pause-body">
+        <DurationField label="Dĺžka pauzy" value={seconds} onChange={(next) => onChange(Math.max(0, next))} />
+        <div className="pause-presets" role="group" aria-label="Rýchla voľba pauzy">
+          {PAUSE_PRESETS.map((preset) => (
+            <button
+              key={preset}
+              type="button"
+              className={`chip ${seconds === preset ? 'chip-on' : ''}`}
+              aria-pressed={seconds === preset}
+              onClick={() => onChange(preset)}
+            >
+              {preset < 60 ? `${preset} s` : `${preset / 60} min`}
+            </button>
+          ))}
+        </div>
+      </div>
     </div>
   )
 }

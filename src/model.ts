@@ -39,6 +39,7 @@ export interface Exercise extends Timing, Author {
   order: number // default position inside its category; each coach can have their own
   favorite?: boolean // of the logged-in coach (from Prefs)
   hidden?: boolean // of the logged-in coach (from Prefs)
+  ownTiming?: boolean // the logged-in coach changed the default times for themselves (Prefs.timing)
   mediaId?: string // photo/video uploaded in the app (Firestore collection media)
   mediaType?: 'image' | 'video'
   mediaFile?: string // file in public/exercises/ (for exercises from starterData.ts)
@@ -106,6 +107,8 @@ export interface Prefs {
   hidden: Record<string, true>
   order: Record<string, number>
   timeOnly: Record<string, boolean>
+  /** Own default times of exercises the coach may not change for everybody. */
+  timing: Record<string, Timing>
 }
 
 export const STARTER_AUTHOR_ID = 'starter'

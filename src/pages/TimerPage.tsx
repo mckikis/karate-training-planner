@@ -356,7 +356,7 @@ export default function TimerPage() {
               Časomiera ide podľa cvikov tréningu.
             </p>
             <div className="grid-2">
-              <DurationField label="Odpočet pred začiatkom" value={settings.timerPrep} onChange={(timerPrep) => updateSettings({ timerPrep })} />
+              <DurationField label="Odpočet pred začiatkom" value={settings.timerPrep} onChange={(timerPrep) => updateSettings({ timerPrep })} step={5} />
             </div>
           </>
         )}
@@ -383,10 +383,10 @@ function CustomFields() {
   return (
     <>
       <div className="grid-2">
-        <NumberField label="Počet sérií" value={settings.timerSets} onChange={(timerSets) => updateSettings({ timerSets: Math.max(1, timerSets) })} />
-        <DurationField label="Čas série" value={settings.timerWork} onChange={(timerWork) => updateSettings({ timerWork: Math.max(1, timerWork) })} />
+        <NumberField label="Počet sérií" value={settings.timerSets} onChange={(timerSets) => updateSettings({ timerSets: Math.max(1, timerSets) })} step={1} min={1} />
+        <DurationField label="Čas série" value={settings.timerWork} onChange={(timerWork) => updateSettings({ timerWork: Math.max(1, timerWork) })} min={1} />
         <DurationField label="Pauza medzi sériami" value={settings.timerRest} onChange={(timerRest) => updateSettings({ timerRest })} />
-        <DurationField label="Odpočet pred začiatkom" value={settings.timerPrep} onChange={(timerPrep) => updateSettings({ timerPrep })} />
+        <DurationField label="Odpočet pred začiatkom" value={settings.timerPrep} onChange={(timerPrep) => updateSettings({ timerPrep })} step={5} />
       </div>
       <label className="check-line">
         <input
@@ -404,11 +404,13 @@ function CustomFields() {
             label="Výmena po"
             value={settings.timerSwitchEvery}
             onChange={(timerSwitchEvery) => updateSettings({ timerSwitchEvery: Math.max(1, timerSwitchEvery) })}
+            min={1}
           />
           <DurationField
             label="Čas na výmenu"
             value={settings.timerSwitchSeconds}
             onChange={(timerSwitchSeconds) => updateSettings({ timerSwitchSeconds })}
+            step={1}
           />
         </div>
       )}

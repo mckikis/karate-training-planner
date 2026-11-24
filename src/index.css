@@ -487,23 +487,88 @@ textarea {
   resize: vertical;
 }
 
-.number-input {
-  position: relative;
-  display: block;
+/* Number and time field: the box looks like an input, small ▲ / ▼ on the right. */
+.spin {
+  display: flex;
+  align-items: stretch;
+  min-height: 46px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--card);
+  overflow: hidden;
 }
 
-.number-input input {
-  padding-right: 28px;
+.spin:focus-within {
+  border-color: var(--accent);
+}
+
+.field .spin input {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  padding: 10px 4px 10px 12px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
   font-variant-numeric: tabular-nums;
+  outline: none;
 }
 
-.suffix {
-  position: absolute;
-  right: 12px;
-  top: 50%;
-  transform: translateY(-50%);
+.spin-unit {
+  align-self: center;
+  padding-right: 6px;
   color: var(--muted);
   pointer-events: none;
+}
+
+.duration-inputs {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+}
+
+.field .spin .duration-minutes,
+.field .spin .duration-seconds {
+  flex: 0 1 auto;
+  width: 3ch;
+  padding: 10px 0;
+}
+
+.field .spin .duration-minutes {
+  text-align: right;
+}
+
+.duration-colon {
+  padding: 0 1px;
+  font-weight: 600;
+}
+
+.spin-buttons {
+  display: flex;
+  flex-direction: column;
+  flex: 0 0 30px;
+  border-left: 1px solid var(--line);
+}
+
+.spin-buttons button {
+  flex: 1;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+}
+
+.spin-buttons button + button {
+  border-top: 1px solid var(--line);
+}
+
+.spin-buttons button:active {
+  background: var(--line);
+  color: var(--text);
 }
 
 .grid-2,
@@ -518,6 +583,7 @@ textarea {
 
 .grid-3 {
   grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+  align-items: end; /* fields stay in one line when a label wraps */
 }
 
 .upload {
@@ -1714,4 +1780,70 @@ button.plan-row:focus-visible {
 
 .copy-row.tinted {
   color: var(--tint-text);
+}
+
+/* ---------- Pause after an exercise (training form) ---------- */
+
+.pause-add {
+  align-self: center;
+  min-height: 44px;
+  margin: 8px auto 0;
+  padding: 0 18px;
+  border: 1px dashed var(--line);
+  border-radius: 22px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  display: block;
+}
+
+.pause-block {
+  margin-top: 8px;
+  padding: 10px 12px 12px;
+  border: 1px dashed var(--timer-rest);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--timer-rest) 22%, transparent);
+}
+
+.pause-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.pause-title {
+  font-weight: 700;
+}
+
+.pause-clock {
+  flex: 1;
+  color: var(--muted);
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+}
+
+.pause-body {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 10px;
+  margin-top: 6px;
+}
+
+.pause-body .field {
+  flex: 0 0 130px;
+}
+
+.pause-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  flex: 1;
+}
+
+.pause-presets .chip {
+  min-height: 44px;
+  padding: 0 12px;
 }

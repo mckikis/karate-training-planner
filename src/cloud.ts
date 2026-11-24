@@ -109,7 +109,7 @@ export interface Data {
   trainingTypes: TrainingType[]
 }
 
-const EMPTY_PREFS: Prefs = { favorites: {}, hidden: {}, order: {}, timeOnly: {} }
+const EMPTY_PREFS: Prefs = { favorites: {}, hidden: {}, order: {}, timeOnly: {}, timing: {} }
 
 type Shared = 'categories' | 'exercises' | 'trainings'
 const SHARED: Shared[] = ['categories', 'exercises', 'trainings']
@@ -139,6 +139,7 @@ const raw = {
   trainingTypes: [] as TrainingType[],
   prefs: EMPTY_PREFS,
   removedStarter: new Set<string>(), // starter items the admin deleted – not added again
+  starterSeeded: false, // starterData.ts was already written to Firebase once – Firebase is the truth now
   settingsFromServer: false,
 }
 
@@ -182,8 +183,11 @@ function computeData() {
     trainingTypes: raw.trainingTypes,
     categories,
     exercises: raw.exercises.map((e) => {
+      const own = p.timing[e.id]
       const merged = {
         ...e,
+        // The coach's own default times win over the ones of the author or the admin.
+        ...(own ? { ...own, ownTiming: true } : {}),
         order: p.order[e.id] ?? e.order,
         favorite: !!p.favorites[e.id],
         hidden: !!p.hidden[e.id],
@@ -420,6 +424,7 @@ function stopListening() {
   raw.trainingTypes = []
   raw.prefs = EMPTY_PREFS
   raw.removedStarter = new Set()
+  raw.starterSeeded = false
   raw.settingsFromServer = false
   computeData()
 }
@@ -486,6 +491,7 @@ function startListening(member: Member) {
       { includeMetadataChanges: true },
       (snap) => {
         raw.removedStarter = new Set((snap.data()?.removedStarter as string[] | undefined) ?? [])
+        raw.starterSeeded = snap.data()?.starterSeeded === true
         if (!snap.metadata.fromCache) raw.settingsFromServer = true
         maybeSyncStarter(member)
       },
@@ -538,13 +544,23 @@ function maybeSyncStarter(member: Member) {
 }
 
 /**
- * Adds starter categories and exercises that are not in Firebase yet. Never deletes or overwrites.
+ * Writes starterData.ts to Firebase – only into an empty project (a new Firebase project).
+ * Once the starter data is in Firebase, Firebase is the truth: what the admin changed or deleted in
+ * the app stays so for every coach, and the code never adds, changes or re-adds starter items.
+ * New exercises for everybody are added by the admin in the app.
  * Starter documents saved before private items existed have no "private" field – the public query
  * does not find them, so they are looked up one by one and marked public.
  */
 async function syncStarterData() {
-  const categories = new Set(raw.categories.map((c) => c.id))
-  const exercises = new Map(raw.exercises.map((e) => [e.id, e]))
+  const alreadySeeded =
+    raw.starterSeeded ||
+    raw.categories.some((c) => c.createdBy === STARTER_AUTHOR_ID || !!c.starterKey) ||
+    raw.exercises.some((e) => e.isDefault)
+  if (alreadySeeded) {
+    rememberSeeded()
+    return
+  }
+
   const batch = writeBatch(fs)
   let changes = 0
   const author = { createdBy: STARTER_AUTHOR_ID, createdByName: STARTER_AUTHOR, createdAt: Date.now(), private: false }
@@ -563,40 +579,41 @@ async function syncStarterData() {
 
   for (const [groupIndex, group] of STARTER.entries()) {
     const categoryId = starterId('c', group.category)
-    if (!categories.has(categoryId) && !raw.removedStarter.has(categoryId)) {
-      await addOrMarkPublic('categories', categoryId, {
-        name: group.category,
-        order: groupIndex,
-        timeOnly: !!group.timeOnly,
-        starterKey: group.category,
-        ...author,
-      })
-    }
+    if (raw.removedStarter.has(categoryId)) continue
+    await addOrMarkPublic('categories', categoryId, {
+      name: group.category,
+      order: groupIndex,
+      timeOnly: !!group.timeOnly,
+      starterKey: group.category,
+      ...author,
+    })
     for (const [index, [name, description, timing, mediaFile]] of group.exercises.entries()) {
       const key = `${group.category}/${name}`
       const id = starterId('e', key)
-      const existing = exercises.get(id)
       if (raw.removedStarter.has(id)) continue
-      if (!existing) {
-        await addOrMarkPublic('exercises', id, {
-          name,
-          description,
-          categoryId,
-          order: index,
-          isDefault: true,
-          byAdmin: false,
-          starterKey: key,
-          mediaFile,
-          ...(group.timeOnly ? toTimeMode(timing) : timing),
-          ...author,
-        })
-      } else if ((existing.mediaFile ?? '') !== (mediaFile ?? '')) {
-        batch.update(doc(fs, 'exercises', id), { mediaFile: mediaFile ?? deleteField() })
-        changes++
-      }
+      await addOrMarkPublic('exercises', id, {
+        name,
+        description,
+        categoryId,
+        order: index,
+        isDefault: true,
+        byAdmin: false,
+        starterKey: key,
+        mediaFile,
+        ...(group.timeOnly ? toTimeMode(timing) : timing),
+        ...author,
+      })
     }
   }
   if (changes > 0) await batch.commit()
+  rememberSeeded()
+}
+
+/** The admin marks the club data as seeded, so no phone ever writes starterData.ts again. */
+function rememberSeeded() {
+  if (raw.starterSeeded || !isAdmin()) return
+  raw.starterSeeded = true
+  background(setDoc(doc(fs, 'appSettings', 'global'), { starterSeeded: true }, { merge: true }))
 }
 
 /** Own documents from before private items existed get private = false, so others see them again. */
@@ -631,7 +648,7 @@ async function migrateLocalData(member: Member) {
     localDb.exercises.toArray(),
     localDb.trainings.toArray(),
   ])
-  const prefs: Prefs = { favorites: {}, hidden: {}, order: {}, timeOnly: {} }
+  const prefs: Prefs = { favorites: {}, hidden: {}, order: {}, timeOnly: {}, timing: {} }
   const author = () => ({ createdBy: member.uid, createdByName: member.name, createdAt: Date.now() })
 
   // Old starter exercises (isDefault, e.g. the English ones of the first version) are not moved –
@@ -642,7 +659,9 @@ async function migrateLocalData(member: Member) {
   const categoryIds = new Map<number, string>()
   for (const c of categories) {
     if (!c.starterKey && !neededCategories.has(c.id)) continue
-    let id = c.starterKey ? starterId('c', c.starterKey) : raw.categories.find((x) => x.name === c.name)?.id
+    let id = c.starterKey
+      ? starterId('c', c.starterKey)
+      : raw.categories.find((x) => x.name.trim().toLowerCase() === c.name.trim().toLowerCase())?.id
     if (!id) {
       const ref = doc(collection(fs, 'categories'))
       await setDoc(ref, { name: c.name, order: Date.now(), timeOnly: !!c.timeOnly, private: false, ...author() })
@@ -661,6 +680,14 @@ async function migrateLocalData(member: Member) {
     } else {
       const categoryId = categoryIds.get(e.categoryId)
       if (!categoryId) continue
+      // Already in Firebase (moved from another phone or browser before) – not added twice.
+      const same = raw.exercises.find(
+        (x) => x.categoryId === categoryId && x.name.trim().toLowerCase() === e.name.trim().toLowerCase(),
+      )
+      if (same) {
+        exerciseIds.set(e.id, same.id)
+        continue
+      }
       const ref = doc(collection(fs, 'exercises'))
       id = ref.id
       const mediaId = e.media ? await uploadMedia(e.media, e.mediaType ?? 'image') : undefined
@@ -685,6 +712,8 @@ async function migrateLocalData(member: Member) {
   }
 
   for (const t of trainings) {
+    const same = raw.trainings.some((x) => x.createdBy === member.uid && x.name === t.name && x.date === t.date)
+    if (same) continue
     const ref = doc(collection(fs, 'trainings'))
     await setDoc(ref, {
       name: t.name,
@@ -730,6 +759,14 @@ export function setHidden(id: string, on: boolean) {
   // A hidden exercise is not a favourite any more.
   if (on) change.favorites = { [id]: deleteField() }
   background(setDoc(prefsRef(), change, { merge: true }))
+}
+
+/**
+ * Own default times of an exercise – only for the logged-in coach (undefined = back to the
+ * default times set by the author or the admin).
+ */
+export function setOwnTiming(id: string, timing: Timing | undefined) {
+  background(setDoc(prefsRef(), { timing: { [id]: timing ? timingOf(timing) : deleteField() } }, { merge: true }))
 }
 
 /**

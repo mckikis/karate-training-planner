@@ -2,7 +2,8 @@ import type { Timing } from './model'
 
 // =====================================================================
 // PREDVOLENÉ KATEGÓRIE A CVIKY
-// Pridávajú sa do aplikácie automaticky pri spustení.
+// Zapíšu sa do Firebase iba raz – do prázdneho projektu. Potom platí to, čo je vo Firebase:
+// zmeny tohto súboru sa do appky už nedostanú, cviky pre všetkých pridáva a upravuje správca v appke.
 //
 // Jeden cvik: ['Názov', 'Popis', čas, 'obrazok.gif']
 //   - čas: reps(série, opakovania, sekúnd na opakovanie, oddych)

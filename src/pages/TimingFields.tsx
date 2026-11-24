@@ -36,30 +36,31 @@ export function TimingFields<T extends Timing>({
       )}
 
       <div className="grid-3">
-        <NumberField label="Série" value={value.sets} onChange={(sets) => set({ sets })} />
+        <NumberField label="Série" value={value.sets} onChange={(sets) => set({ sets: Math.max(1, sets) })} step={1} min={1} />
         {value.mode === 'reps' && !timeOnly ? (
           <>
-            <NumberField label="Opakovania" value={value.reps} onChange={(reps) => set({ reps })} />
+            <NumberField label="Opakovania" value={value.reps} onChange={(reps) => set({ reps })} step={1} />
             <NumberField
               label="Sekúnd / opak."
               value={value.secondsPerRep}
               onChange={(secondsPerRep) => set({ secondsPerRep })}
               decimal
               suffix="s"
+              step={0.5}
             />
           </>
         ) : (
           <DurationField
             label="Jedna séria"
             value={value.workSeconds}
-            onChange={(workSeconds) => set({ workSeconds })}
+            onChange={(workSeconds) => set({ workSeconds: Math.max(1, workSeconds) })}
+            min={1}
           />
         )}
-        <NumberField
+        <DurationField
           label="Oddych medzi sériami"
           value={value.restBetweenSets}
           onChange={(restBetweenSets) => set({ restBetweenSets })}
-          suffix="s"
         />
       </div>
 
@@ -80,12 +81,13 @@ export function TimingFields<T extends Timing>({
       </label>
       {(value.switchEvery ?? 0) > 0 && (
         <div className="grid-3">
-          <DurationField label="Výmena po" value={value.switchEvery ?? 0} onChange={(switchEvery) => set({ switchEvery: Math.max(1, switchEvery) })} />
+          <DurationField label="Výmena po" value={value.switchEvery ?? 0} onChange={(switchEvery) => set({ switchEvery: Math.max(1, switchEvery) })} min={1} />
           <NumberField
             label="Čas na výmenu"
             value={value.switchSeconds ?? 5}
             onChange={(switchSeconds) => set({ switchSeconds })}
             suffix="s"
+            step={1}
           />
         </div>
       )}

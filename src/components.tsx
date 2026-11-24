@@ -1,6 +1,5 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type FocusEvent, type MouseEvent, type ReactNode } from 'react'
 import { Link, useNavigate } from 'react-router'
-import { formatDuration, parseDuration } from './time'
 import { useMediaBlob } from './cloud'
 
 /** Turns a Blob saved in the database into a URL that <img> or <video> can show. */
@@ -151,7 +150,40 @@ export function Footer() {
 }
 
 /**
+ * Selects the whole value when the field is tapped, so typing replaces it. The mouse-up after the
+ * tap would otherwise cancel the selection and new digits would be added to the old ones.
+ */
+const selectOnFocus = {
+  onFocus: (e: FocusEvent<HTMLInputElement>) => {
+    e.currentTarget.select()
+    e.currentTarget.dataset.justFocused = '1'
+  },
+  onMouseUp: (e: MouseEvent<HTMLInputElement>) => {
+    if (e.currentTarget.dataset.justFocused) {
+      e.preventDefault()
+      delete e.currentTarget.dataset.justFocused
+    }
+  },
+}
+
+/** Small ▲ / ▼ buttons inside a field – a tap changes the value by one step. */
+function SpinButtons({ onUp, onDown, upLabel, downLabel }: { onUp: () => void; onDown: () => void; upLabel: string; downLabel: string }) {
+  return (
+    <span className="spin-buttons">
+      {/* tabIndex -1 + preventDefault: a tap does not take the focus away from the typed value */}
+      <button type="button" tabIndex={-1} aria-label={upLabel} onMouseDown={(e) => e.preventDefault()} onClick={onUp}>
+        <svg width="12" height="8" viewBox="0 0 12 8" aria-hidden="true"><path d="M1 7l5-5 5 5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>
+      </button>
+      <button type="button" tabIndex={-1} aria-label={downLabel} onMouseDown={(e) => e.preventDefault()} onClick={onDown}>
+        <svg width="12" height="8" viewBox="0 0 12 8" aria-hidden="true"><path d="M1 1l5 5 5-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>
+      </button>
+    </span>
+  )
+}
+
+/**
  * Number input that works well on iPhone (numeric keyboard, accepts "1,5" and "1.5").
+ * With step, small ▲ / ▼ buttons add or subtract the step.
  */
 export function NumberField({
   label,
@@ -159,12 +191,16 @@ export function NumberField({
   onChange,
   decimal = false,
   suffix,
+  step,
+  min = 0,
 }: {
   label: string
   value: number
   onChange: (value: number) => void
   decimal?: boolean
   suffix?: string
+  step?: number
+  min?: number
 }) {
   const [text, setText] = useState(String(value))
 
@@ -173,63 +209,151 @@ export function NumberField({
     if (parsed !== value) setText(String(value))
   }, [value])
 
+  const stepBy = (delta: number) => onChange(Math.max(min, Math.round((value + delta) * 100) / 100))
+
   return (
     <label className="field number-field">
       <span className="field-label">{label}</span>
-      <span className="number-input">
+      <span className="spin">
         <input
           type="text"
           inputMode={decimal ? 'decimal' : 'numeric'}
+          enterKeyHint="done"
           value={text}
-          onFocus={(e) => e.target.select()}
+          {...selectOnFocus}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault()
+              e.currentTarget.blur()
+            }
+          }}
           onChange={(e) => {
             setText(e.target.value)
             const parsed = Number(e.target.value.replace(',', '.'))
             if (!Number.isNaN(parsed) && parsed >= 0) onChange(decimal ? parsed : Math.round(parsed))
           }}
         />
-        {suffix && <span className="suffix">{suffix}</span>}
+        {suffix && <span className="spin-unit">{suffix}</span>}
+        {step !== undefined && (
+          <SpinButtons
+            onUp={() => stepBy(step)}
+            onDown={() => stepBy(-step)}
+            upLabel={`${label}: pridať ${String(step).replace('.', ',')}`}
+            downLabel={`${label}: ubrať ${String(step).replace('.', ',')}`}
+          />
+        )}
       </span>
     </label>
   )
 }
 
+const onlyDigits = (text: string) => text.replace(/\D/g, '')
+const twoDigits = (n: number) => String(n).padStart(2, '0')
+
 /**
- * Time input in minutes:seconds. "15:00" = 15 minutes, "2:30" = 2.5 minutes, "90" = 90 seconds.
+ * Time input as minutes : seconds with the numeric keyboard. The minutes come first; after two
+ * digits or Enter the cursor jumps to the seconds. ▲ / ▼ add or subtract step seconds (15 s).
+ * Seconds over 59 are allowed while typing ("0:90" = 1:30) and tidied up when leaving the field.
  */
 export function DurationField({
   label,
   value,
   onChange,
+  step = 15,
+  min = 0,
 }: {
   label: string
   value: number
   onChange: (seconds: number) => void
+  step?: number
+  min?: number
 }) {
-  const [text, setText] = useState(formatDuration(value))
+  const [minutes, setMinutes] = useState(String(Math.floor(value / 60)))
+  const [seconds, setSeconds] = useState(twoDigits(value % 60))
+  const minutesRef = useRef<HTMLInputElement>(null)
+  const secondsRef = useRef<HTMLInputElement>(null)
+  const total = (m: string, s: string) => Number(onlyDigits(m) || 0) * 60 + Number(onlyDigits(s) || 0)
+
+  function tidy() {
+    setMinutes(String(Math.floor(value / 60)))
+    setSeconds(twoDigits(value % 60))
+  }
 
   useEffect(() => {
-    if (parseDuration(text) !== value) setText(formatDuration(value))
+    if (total(minutes, seconds) !== value) tidy()
   }, [value])
+
+  // Leaving the field (not just moving between minutes and seconds) shows the value as m:ss.
+  function onBlur(e: FocusEvent<HTMLInputElement>) {
+    if (e.relatedTarget !== minutesRef.current && e.relatedTarget !== secondsRef.current) tidy()
+  }
+
+  const stepBy = (delta: number) => onChange(Math.max(min, value + delta))
 
   return (
     <label className="field number-field">
       <span className="field-label">{label}</span>
-      <span className="number-input">
-        <input
-          type="text"
-          inputMode="decimal"
-          placeholder="min:s"
-          value={text}
-          onFocus={(e) => e.target.select()}
-          onChange={(e) => {
-            setText(e.target.value)
-            const seconds = parseDuration(e.target.value)
-            if (seconds !== undefined) onChange(seconds)
-          }}
-          onBlur={() => setText(formatDuration(value))}
+      <span className="spin">
+        <span className="duration-inputs">
+          <input
+            ref={minutesRef}
+            className="duration-minutes"
+            type="text"
+            inputMode="numeric"
+            pattern="[0-9]*"
+            enterKeyHint="next"
+            aria-label={`${label} – minúty`}
+            maxLength={3}
+            value={minutes}
+            {...selectOnFocus}
+            onBlur={onBlur}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault()
+                secondsRef.current?.focus()
+              }
+            }}
+            onChange={(e) => {
+              const next = onlyDigits(e.target.value)
+              setMinutes(next)
+              onChange(total(next, seconds))
+              if (next.length >= 2) secondsRef.current?.focus()
+            }}
+          />
+          <span className="duration-colon" aria-hidden="true">:</span>
+          <input
+            ref={secondsRef}
+            className="duration-seconds"
+            type="text"
+            inputMode="numeric"
+            pattern="[0-9]*"
+            enterKeyHint="done"
+            aria-label={`${label} – sekundy`}
+            maxLength={2}
+            value={seconds}
+            {...selectOnFocus}
+            onBlur={onBlur}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault()
+                e.currentTarget.blur()
+              }
+              // Backspace in empty seconds goes back to the minutes.
+              if (e.key === 'Backspace' && e.currentTarget.value === '') minutesRef.current?.focus()
+            }}
+            onChange={(e) => {
+              const next = onlyDigits(e.target.value)
+              setSeconds(next)
+              onChange(total(minutes, next))
+            }}
+          />
+        </span>
+        <SpinButtons
+          onUp={() => stepBy(step)}
+          onDown={() => stepBy(-step)}
+          upLabel={`${label}: pridať ${step} s`}
+          downLabel={`${label}: ubrať ${step} s`}
         />
-        <span className="suffix">min</span>
       </span>
     </label>
   )

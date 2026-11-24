@@ -65,7 +65,8 @@ Pri prvom prihlásení na telefóne, kde už boli dáta zo staršej verzie appky
 
 - **Kategórie a cviky:** správca ich pridá priamo v appke. Cviky správcu vidí každý tréner.
 - **Fotka alebo video k predvolenému cviku:** správca otvorí cvik → *Upraviť cvik* → vyberie súbor z telefónu.
-- **Predvolené cviky v kóde:** `src/starterData.ts` (+ súbory v `public/exercises/`), dostanú sa ku všetkým po push do `main`.
+- **Predvolené časy cviku:** správca ich nastaví v *Upraviť cvik* (opakovania alebo čas, série, oddych) – platia pre všetkých. Ostatní tréneri si ich môžu zmeniť len pre seba v detaile cviku.
+- **`src/starterData.ts`** sa použije len pri úplne novom (prázdnom) Firebase projekte. V existujúcom projekte platí to, čo je vo Firebase – úpravy tohto súboru appka ignoruje.
 
 ## Limity zadarmo (plán Spark)
 
