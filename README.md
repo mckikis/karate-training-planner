@@ -6,9 +6,9 @@ Webová aplikácia pre trénerov karate klubu **Katsudo Sabinov**. Tréneri si v
 
 ## Čo v nej tréneri robia
 
-- **Cviky** – základná sada karate cvikov v kategóriách, vlastné cviky s fotkou, GIFom alebo videom z telefónu, hľadanie, obľúbené, skrývanie a vlastné poradie.
-- **Tréningy** – tréning s časťami Rozcvička, Hlavná časť a Záver. Pri každom cviku sa nastavia série, opakovania alebo čas a pauzy. Appka ukáže dĺžku tréningu aj rozvrh (napr. 17:17 – 17:20). Tréning sa dá skopírovať, filtrovať podľa typu a skupiny (Prípravka, Starší).
-- **Časomiera** – odpočet na celú obrazovku: vlastné série a pauzy alebo celý tréning cvik po cviku, s pípaním, výmenou vo dvojiciach a atoshi baraku.
+- **Cviky** – základná sada karate cvikov v kategóriách, vlastné cviky s fotkou, GIFom alebo videom, hľadanie, obľúbené, skrývanie a vlastné poradie.
+- **Tréningy** – tréning s časťami Rozcvička, Hlavná časť a Záver. Pri každom cviku sa nastavia série, opakovania alebo čas a pauzy. Appka ukáže dĺžku tréningu aj rozvrh. Tréning sa dá skopírovať, filtrovať podľa typu a skupiny.
+- **Časomiera** – odpočet na celú obrazovku: vlastné série a pauzy alebo celý tréning cvik po cviku a s pípaním.
 - **Spoločné dáta** – tréner sa prihlási menom a prihlasovacím kľúčom od správcu. Cviky a tréningy sa zdieľajú medzi trénermi (súkromné vidí len autor), appka funguje aj bez internetu.
 
 ## Inštalácia do telefónu
