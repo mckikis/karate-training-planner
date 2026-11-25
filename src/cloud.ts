@@ -260,12 +260,25 @@ function background(promise: Promise<unknown>) {
   promise.catch((error) => showError(describeError(error)))
 }
 
-function describeError(error: unknown): string {
+/** A message for the coach (Slovak) – also for errors of Firebase and of the phone's storage. */
+export function describeError(error: unknown): string {
   const code = (error as { code?: string })?.code ?? ''
+  const name = (error as { name?: string })?.name ?? ''
   if (code.includes('permission-denied')) return 'Na túto zmenu nemáš oprávnenie alebo tvoj prihlasovací kľúč už neplatí.'
-  if (code.includes('unavailable') || code.includes('network')) return 'Bez internetu. Skús to znova, keď budeš online.'
+  if (code.includes('unavailable') || code.includes('network') || code.includes('deadline-exceeded')) {
+    return 'Spojenie so serverom zlyhalo (slabý signál alebo bez internetu). Skús to znova, keď budeš mať lepší signál alebo Wi-Fi.'
+  }
   if (code.includes('too-many-requests')) return 'Priveľa pokusov. Počkaj chvíľu a skús znova.'
-  return error instanceof Error ? error.message : 'Niečo sa nepodarilo.'
+  if (code.includes('resource-exhausted')) {
+    return 'Bezplatný denný limit databázy je vyčerpaný. Skús to zajtra alebo nahraj menší súbor.'
+  }
+  if (code.includes('invalid-argument')) return 'Súbor sa nepodarilo uložiť – je príliš veľký alebo poškodený. Skús menší obrázok alebo kratšie video.'
+  if (code.includes('unauthenticated')) return 'Prihlásenie vypršalo. Odhlás sa a prihlás sa znova.'
+  if (name === 'QuotaExceededError') return 'V telefóne je málo voľného miesta. Uvoľni miesto a skús to znova.'
+  if (name === 'NotReadableError') return 'Súbor sa nedá prečítať. Vyber ho znova, prípadne ho najprv ulož do telefónu (nie iba v cloude).'
+  return error instanceof Error && /[áäčďéíľĺňóôŕšťúýž]/i.test(error.message)
+    ? error.message // our own Slovak message
+    : 'Niečo sa nepodarilo. Skús to znova.'
 }
 
 // ---------- Login ----------
@@ -906,8 +919,15 @@ export interface ExerciseInput {
   parentId?: string
 }
 
-/** Creates or changes an own exercise. Uploading a picture needs the internet. Returns the id. */
-export async function saveExercise(id: string | undefined, input: ExerciseInput): Promise<string> {
+/**
+ * Creates or changes an own exercise. Uploading a picture needs the internet; onProgress gets 0…1
+ * while it uploads. Returns the id.
+ */
+export async function saveExercise(
+  id: string | undefined,
+  input: ExerciseInput,
+  onProgress?: (done: number) => void,
+): Promise<string> {
   const member = me()
   const old = id ? raw.exercises.find((e) => e.id === id) : undefined
   const fields: Record<string, unknown> = {
@@ -919,7 +939,7 @@ export async function saveExercise(id: string | undefined, input: ExerciseInput)
     updatedAt: Date.now(),
   }
   if (input.media.kind === 'new') {
-    fields.mediaId = await uploadMedia(input.media.file, input.media.type)
+    fields.mediaId = await uploadMedia(input.media.file, input.media.type, onProgress)
     fields.mediaType = input.media.type
   } else if (input.media.kind === 'remove') {
     fields.mediaId = deleteField()
@@ -1006,23 +1026,70 @@ export function deleteTraining(id: string) {
 // ---------- Pictures and videos ----------
 
 const CHUNK_BYTES = 900 * 1024 // a Firestore document can hold at most 1 MB
-const CHUNKS_PER_BATCH = 8
+// How long one piece (~1 MB) may take before the upload is given up – a weak mobile signal
+// otherwise leaves the coach waiting for ever without a message.
+const CHUNK_TIMEOUT_MS = 90_000
 
-async function uploadMedia(blob: Blob, type: 'image' | 'video'): Promise<string> {
-  if (!navigator.onLine) throw new Error('Na nahratie obrázka alebo videa potrebuješ internet.')
+/** Rejects with a Slovak message when the server does not confirm the write in time. */
+function confirmedInTime<T>(promise: Promise<T>): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(
+      () =>
+        reject(
+          new Error(
+            'Nahrávanie sa zastavilo – signál je príliš slabý. Skús to znova s lepším signálom alebo na Wi-Fi, prípadne nahraj menší súbor.',
+          ),
+        ),
+      CHUNK_TIMEOUT_MS,
+    )
+    promise.then(
+      (value) => {
+        clearTimeout(timer)
+        resolve(value)
+      },
+      (error) => {
+        clearTimeout(timer)
+        reject(error)
+      },
+    )
+  })
+}
+
+/**
+ * Uploads a picture or video in pieces of 900 kB, one piece per request. Big requests (several MB)
+ * get stuck on mobile data and come close to the 10 MB limit of a Firestore request.
+ * onProgress gets 0…1.
+ */
+async function uploadMedia(blob: Blob, type: 'image' | 'video', onProgress?: (done: number) => void): Promise<string> {
+  if (!navigator.onLine) throw new Error('Na nahratie obrázka alebo videa potrebuješ internet (dáta alebo Wi-Fi).')
+  if (blob.size === 0) throw new Error('Súbor je prázdny. Vyber ho znova.')
   const ref = doc(collection(fs, 'media'))
-  const bytes = new Uint8Array(await blob.arrayBuffer())
-  const count = Math.max(1, Math.ceil(bytes.length / CHUNK_BYTES))
-  await setDoc(ref, { type, mime: blob.type, size: bytes.length, chunks: count, createdBy: me().uid, createdAt: Date.now() })
-  for (let start = 0; start < count; start += CHUNKS_PER_BATCH) {
-    const batch = writeBatch(fs)
-    for (let i = start; i < Math.min(start + CHUNKS_PER_BATCH, count); i++) {
-      const part = bytes.subarray(i * CHUNK_BYTES, (i + 1) * CHUNK_BYTES)
-      batch.set(doc(fs, 'media', ref.id, 'chunks', String(i).padStart(4, '0')), { i, data: Bytes.fromUint8Array(part) })
-    }
-    await batch.commit()
+  let bytes: Uint8Array
+  try {
+    bytes = new Uint8Array(await blob.arrayBuffer())
+  } catch {
+    throw new Error('Súbor sa nedá prečítať. Vyber ho znova, prípadne ho najprv ulož do telefónu (nie iba v cloude).')
   }
-  await localDb.mediaCache.put({ id: ref.id, blob })
+  const count = Math.max(1, Math.ceil(bytes.length / CHUNK_BYTES))
+  onProgress?.(0)
+  await confirmedInTime(
+    setDoc(ref, { type, mime: blob.type, size: bytes.length, chunks: count, createdBy: me().uid, createdAt: Date.now() }),
+  )
+  try {
+    for (let i = 0; i < count; i++) {
+      const part = bytes.subarray(i * CHUNK_BYTES, (i + 1) * CHUNK_BYTES)
+      await confirmedInTime(
+        setDoc(doc(fs, 'media', ref.id, 'chunks', String(i).padStart(4, '0')), { i, data: Bytes.fromUint8Array(part) }),
+      )
+      onProgress?.((i + 1) / count)
+    }
+  } catch (error) {
+    // A half uploaded file is of no use – remove it (later, when the phone is online again).
+    deleteMedia(ref.id).catch(() => {})
+    throw error
+  }
+  // The copy in the phone is only a cache – a full phone must not stop the upload.
+  await localDb.mediaCache.put({ id: ref.id, blob }).catch(() => {})
   return ref.id
 }
 

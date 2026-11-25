@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router'
 import { byOrder, exerciseMedia, timingOf, toTimeMode, type Timing } from '../model'
-import { canEditExercise, isMine, saveExercise, useData, type MediaChange } from '../cloud'
+import { canEditExercise, describeError, isMine, saveExercise, useData, type MediaChange } from '../cloud'
 import { Media, TopBar } from '../components'
 import { TimingFields } from './TimingFields'
 
@@ -17,19 +17,51 @@ const DEFAULT_TIMING: Timing = {
   restBetweenSets: 30,
 }
 
-/** Makes a large photo smaller (JPEG). GIFs and videos stay as they are. */
-async function shrinkPhoto(file: File): Promise<Blob> {
-  if (!/^image\/(jpeg|png|webp|heic|heif)$/.test(file.type)) return file
+const VIDEO_EXTENSIONS = /\.(mp4|mov|m4v|webm|3gp)$/i
+
+/** Picture or video – also for files without a type (some Android pickers send none). */
+function mediaKind(file: File): 'image' | 'video' {
+  if (file.type.startsWith('video')) return 'video'
+  if (!file.type && VIDEO_EXTENSIONS.test(file.name)) return 'video'
+  return 'image'
+}
+
+/** Decodes a photo – createImageBitmap, or an <img> where it cannot read the format (e.g. HEIC). */
+async function decodePhoto(file: Blob): Promise<{ source: CanvasImageSource; width: number; height: number }> {
   try {
     const bitmap = await createImageBitmap(file)
-    const scale = Math.min(1, MAX_PHOTO_SIDE / Math.max(bitmap.width, bitmap.height))
-    if (scale === 1 && file.size < 1024 * 1024) return file
+    return { source: bitmap, width: bitmap.width, height: bitmap.height }
+  } catch {
+    const url = URL.createObjectURL(file)
+    try {
+      const img = new Image()
+      img.src = url
+      await img.decode()
+      return { source: img, width: img.naturalWidth, height: img.naturalHeight }
+    } finally {
+      // the canvas has the picture after drawImage; the URL can go a moment later
+      setTimeout(() => URL.revokeObjectURL(url), 10_000)
+    }
+  }
+}
+
+/**
+ * Makes a large photo smaller (JPEG) – less to upload on mobile data. A HEIC photo of an iPhone is
+ * always turned into JPEG, so Android phones can show it too. GIFs and videos stay as they are.
+ */
+async function shrinkPhoto(file: File): Promise<Blob> {
+  const heic = /heic|heif/i.test(file.type) || /\.(heic|heif)$/i.test(file.name)
+  if (!heic && !/^image\/(jpeg|png|webp)$/.test(file.type)) return file
+  try {
+    const { source, width, height } = await decodePhoto(file)
+    const scale = Math.min(1, MAX_PHOTO_SIDE / Math.max(width, height))
+    if (!heic && scale === 1 && file.size < 1024 * 1024) return file
     const canvas = document.createElement('canvas')
-    canvas.width = Math.round(bitmap.width * scale)
-    canvas.height = Math.round(bitmap.height * scale)
-    canvas.getContext('2d')!.drawImage(bitmap, 0, 0, canvas.width, canvas.height)
+    canvas.width = Math.round(width * scale)
+    canvas.height = Math.round(height * scale)
+    canvas.getContext('2d')!.drawImage(source, 0, 0, canvas.width, canvas.height)
     const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.85))
-    return blob && blob.size < file.size ? blob : file
+    return blob && (heic || blob.size < file.size) ? blob : file
   } catch {
     return file
   }
@@ -55,6 +87,8 @@ export default function ExerciseFormPage() {
   const [isPrivate, setIsPrivate] = useState(false)
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
+  // Upload progress 0…1 (undefined = nothing is uploading).
+  const [progress, setProgress] = useState<number>()
 
   // When editing, fill the form once the exercise has arrived.
   useEffect(() => {
@@ -92,8 +126,12 @@ export default function ExerciseFormPage() {
       setError(`Súbor je príliš veľký. Použi obrázok alebo krátke video pod ${MAX_MEDIA_MB} MB.`)
       return
     }
+    if (file.size === 0) {
+      setError('Súbor je prázdny. Vyber ho znova.')
+      return
+    }
     setError('')
-    const type = file.type.startsWith('video') ? 'video' : 'image'
+    const type = mediaKind(file)
     setMedia({ kind: 'new', file: type === 'image' ? await shrinkPhoto(file) : file, type })
   }
 
@@ -108,6 +146,7 @@ export default function ExerciseFormPage() {
     }
     setSaving(true)
     setError('')
+    setProgress(undefined)
     try {
       const id = await saveExercise(editingId, {
         name: name.trim(),
@@ -117,14 +156,19 @@ export default function ExerciseFormPage() {
         media,
         private: ownsPrivacy ? isPrivate || forcedPrivate : !!editing?.private,
         parentId: editing ? undefined : parent?.id,
-      })
+      }, setProgress)
       if (editingId) navigate(-1)
       // A new variant: back to its exercise, where it is listed.
       else if (parent) navigate(`/exercises/${parent.id}`, { replace: true })
       else navigate(`/exercises/${id}`, { replace: true })
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Uloženie sa nepodarilo.')
+      setError(
+        media.kind === 'new'
+          ? `Obrázok alebo video sa nepodarilo nahrať, cvik nie je uložený. ${describeError(e)}`
+          : `Cvik sa nepodarilo uložiť. ${describeError(e)}`,
+      )
       setSaving(false)
+      setProgress(undefined)
     }
   }
 
@@ -233,9 +277,19 @@ export default function ExerciseFormPage() {
 
         {error && <p className="error" role="alert">{error}</p>}
 
+        {saving && media.kind === 'new' && (
+          <p className="hint">Nahrávam súbor. Nezatváraj appku, kým sa neuloží – na mobilných dátach to môže chvíľu trvať.</p>
+        )}
+
         <div className="form-actions">
           <button type="submit" className="button button-primary" disabled={saving}>
-            {saving ? (media.kind === 'new' ? 'Nahrávam…' : 'Ukladám…') : parent ? 'Uložiť variant' : 'Uložiť cvik'}
+            {saving
+              ? media.kind === 'new'
+                ? `Nahrávam… ${Math.round((progress ?? 0) * 100)} %`
+                : 'Ukladám…'
+              : parent
+                ? 'Uložiť variant'
+                : 'Uložiť cvik'}
           </button>
         </div>
       </form>
